@@ -4,10 +4,26 @@ type Props = {
   onNavigate: () => void;
 };
 
+interface User {
+  firstName: string;
+  lastName: string;
+}
+
+const user: User = {
+  firstName: 'Chung',
+  lastName: 'Mai'
+};
+
+// 2. Chỉ định tham số `user` phải có kiểu dữ liệu là `User`
+function formatName(user: User) {
+  return user.firstName + ' ' + user.lastName;
+}
+
 export function HelloWorldScreen({ onNavigate }: Props) {
+  
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Hello World 1</Text>
+      <Text style={styles.text}>Hello, {formatName(user)}</Text>
       <TouchableOpacity style={styles.button} onPress={onNavigate}>
         <Text style={styles.buttonText}>Xem danh sách rau củ</Text>
       </TouchableOpacity>
