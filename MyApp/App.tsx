@@ -1,49 +1,43 @@
-// import { useState } from 'react';
-// import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-// import { SafeAreaProvider } from 'react-native-safe-area-context';
-// import { HelloWorldScreen } from './HelloWorldScreen';
-// import { VegetableListScreen } from './VegetableListScreen';
-
-// function App() {
-//   const isDarkMode = useColorScheme() === 'dark';
-//   const [screen, setScreen] = useState<'home' | 'vegetables'>('home');
-
-//   return (
-//     <SafeAreaProvider>
-//       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-//       <View style={styles.container}>
-//         {screen === 'home' ? (
-//           <HelloWorldScreen onNavigate={() => setScreen('vegetables')} />
-//         ) : (
-//           <VegetableListScreen onBack={() => setScreen('home')} />
-//         )}
-//       </View>
-//     </SafeAreaProvider>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-// });
-
-// export default App;
-
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>Open up App.js to start working on your app!</Text>
-    </View>
-  );
+import { StyleSheet, Text, View, Alert } from 'react-native';
+import ProductList from './ProductList';
+import Avatar from './components/Avatar';
+import AuthorRow from './components/AuthorRow';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+const user = {
+  firstName: 'Chung',
+  lastName: 'Mai',
+};
+
+function formatName(user) {
+  return user.firstName + ' ' + user.lastName;
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#fff'
+  },
+  textStyle: {
+    fontSize: 50,
   },
 });
+
+class App extends React.Component {
+  render() {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View>
+          <Text style={{ backgroundColor: 'yellow' }}>
+            Hello World
+          </Text>
+          <ProductList />
+          <AuthorRow fullName='Chung Mai' linkText='Comments' onPress={() => Alert.alert('Pressed')} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+}
+
+export default App;
