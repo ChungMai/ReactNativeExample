@@ -2,13 +2,17 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import React from 'react';
 import Avatar from './Avatar';
 
-interface AuthorRowProps {
+export interface AuthorRowProps {
     fullName: string;
-    linkText: string;
-    onPress: () => void;
+    linkText?: string;
+    onPressLinkText?: () => void;
 }
 
-export default function AuthorRow({ fullName, linkText, onPress }: AuthorRowProps) {
+export default function AuthorRow({
+    fullName,
+    linkText = '',
+    onPressLinkText = () => {},
+}: AuthorRowProps) {
     return (
         <View style={styles.container}>
             <Avatar
@@ -19,7 +23,7 @@ export default function AuthorRow({ fullName, linkText, onPress }: AuthorRowProp
             <Text style={styles.text} numberOfLines={1}>
                 {fullName}
             </Text>
-            <TouchableOpacity onPress={onPress}>
+            <TouchableOpacity onPress={onPressLinkText}>
                 <Text style={styles.link}>{linkText}</Text>
             </TouchableOpacity>
         </View>
@@ -32,7 +36,6 @@ const styles = StyleSheet.create({
         height: 50,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
     },
     text: {
         // flex: 1,
