@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Smart Rooms",
+    "slug": "smart-rooms",
+    "scheme": "smartrooms",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-router"],
+    "web": { "bundler": "metro", "output": "single" }
+  }
+}
