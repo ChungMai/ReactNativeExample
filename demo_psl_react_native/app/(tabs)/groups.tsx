@@ -1,6 +1,6 @@
 // Placeholder tab – not part of this demo.
 import { Text, View } from 'react-native'
-import { colors } from '../../src/theme'
+import { colors } from '../../src/shared/theme'
 
 export default function Groups() {
   return (

@@ -12,7 +12,9 @@ Built with **Expo SDK 58 · React Native 0.88 · React 19.3 · Expo Router 58 ·
 cd smart-rooms
 npm install
 npx expo start        # press i for iOS Simulator, w for web, or scan the QR code with Expo Go
-npm run typecheck     # 0 errors
+npm run typecheck     # 0 errors (run `npx expo start` once first: it generates the typed-route types in .expo/types)
+npm test              # 145 unit tests (Jest + React Native Testing Library)
+npm run lint          # ESLint: Expo rules + architecture boundaries
 ```
 
 Don't run `npm audit fix --force` — it moves packages outside the versions Expo SDK 58 expects.
@@ -42,7 +44,7 @@ The state lives in memory, so reloading the app resets it — every demo starts 
 
 Goal: show how TypeScript guides a change, just like an exhaustive `switch` over an enum in Swift. Rehearsed — the compiler errors below are exactly what you will see.
 
-**Step 1 — add the new case to the type** (`src/types.ts`)
+**Step 1 — add the new case to the type** (`src/features/rooms/domain/room-sorting.ts`)
 
 ```ts
 export type SortKey = 'alphabetical' | 'recent' | 'devices'
@@ -51,14 +53,14 @@ export type SortKey = 'alphabetical' | 'recent' | 'devices'
 Run `npm run typecheck` (or look at the editor). Two errors appear:
 
 ```
-src/types.ts: Property 'devices' is missing in type '{ alphabetical: string; recent: string; }'
+src/features/rooms/domain/room-sorting.ts: Argument of type '"devices"' is not assignable to parameter of type 'never'.
+src/features/rooms/presentation/components/sort-labels.ts: Property 'devices' is missing in type '{ alphabetical: string; recent: string; }'
               but required in type 'Record<SortKey, string>'.
-src/hooks/useSortedRooms.ts: Argument of type '"devices"' is not assignable to parameter of type 'never'.
 ```
 
 > Say: *"`Record<SortKey, string>` forces a label for every key, and `assertNever` forces the switch to handle every case — like a Swift `switch` on an enum."*
 
-**Step 2 — add the label** (`src/types.ts`)
+**Step 2 — add the label** (`src/features/rooms/presentation/components/sort-labels.ts`)
 
 ```ts
 export const SORT_LABELS: Record<SortKey, string> = {
@@ -68,9 +70,9 @@ export const SORT_LABELS: Record<SortKey, string> = {
 }
 ```
 
-One error left, in `useSortedRooms.ts`.
+One error left, in `room-sorting.ts`.
 
-**Step 3 — handle the case** (`src/hooks/useSortedRooms.ts`)
+**Step 3 — handle the case** (`src/features/rooms/domain/room-sorting.ts`)
 
 ```ts
 case 'devices': return b.deviceIds.length - a.deviceIds.length
@@ -80,52 +82,147 @@ case 'devices': return b.deviceIds.length - a.deviceIds.length
 
 **Safety net:** commit the finished version on a separate git branch (`git switch -c live-done`) and keep a short screen recording, in case anything goes wrong on stage.
 
+## Architecture
+
+The app follows **Clean Architecture**, organised **by feature**. Each feature has three layers, and dependencies only point inwards:
+
+```
+presentation  ──►  domain  ◄──  data
+ (screens,         (entities,    (DTOs, mappers,
+  hooks, UI)        use cases,    API / DB sources,
+                    repository    repository
+                    interfaces)   implementation)
+```
+
+- **domain** knows nothing about React, Expo, DTOs or the UI.
+- **data** implements the repository interfaces from domain.
+- **presentation** calls use cases and never touches data directly.
+- Three models per concept: **entity** (domain) → **DTO** (data) → **Display** (presentation), joined by mappers.
+- `src/di/container.ts` is the only place that creates concrete classes and wires them together.
+- Each feature has a **public API**, `src/features/<name>/index.ts`. Other features and `app/` import only from there; ESLint (`eslint.config.js`) rejects deep imports, domain → data/presentation imports, and React / React Native / Expo Router inside domain and data. `src/di` and `tests/` are exempt.
+
+### Errors, loading and empty states
+
+- `shared/domain/app-error.ts`: `AppError` (`network` / `timeout` / `unknown`), `toAppError()` wraps anything that was thrown, `userMessage()` gives text that is safe to show.
+- `LoadRoomsUseCase` / `LoadDevicesUseCase` call `repository.refresh()` once per session and throw an `AppError`; `execute(true)` forces a retry.
+- `shared/hooks/use-load-on-mount.ts` runs the load in a `useEffect` and exposes `loading | success | error` + `retry()`. Its cleanup ignores a result that arrives after unmount or after a retry.
+- `shared/components/state-views.tsx`: `LoadingView` and `ErrorView` (Retry button). Rooms and Devices show them; empty lists have their own message.
+- To see the error state: build `FakeRoomApi` / `FakeDeviceApi` in `di/container.ts` with `new AppError('network', 'offline')`.
+
+### Typed routes
+
+`app.json` enables `experiments.typedRoutes`. `src/shared/routes.ts` holds the route contracts (`routes.room(id)`, `routes.newRoom`), so a wrong path or a missing `id` is a compile error.
+
+## React Mental Model: How This App Renders
+
+**A component is a function of its props and state.** React calls it to get the UI, and calls it again whenever its state changes. A render must not mutate anything: it only reads and returns UI. That is why every update in this app creates a *new* object or array instead of editing the old one (`{ ...devices, [id]: { ...d, on: !d.on } }`): React and `useSyncExternalStore` detect a change by comparing references.
+
+### Render cycle 1 — opening the Rooms tab (`useRoomsScreen`)
+
+| # | What happens | Why |
+|---|---|---|
+| 1 | **Render** with `status: 'loading'` → `LoadingView` | `useLoadOnMount` starts in the loading state |
+| 2 | React **commits** to the screen, *then* runs the effect | Effects run after the UI is on screen, never during render |
+| 3 | The effect calls `loadRooms.execute()` | Dependencies `[load, attempt]` did not change, so it runs once |
+| 4 | The promise resolves → `setState({ status: 'success' })` → **render** | The list appears. The screen also re-renders when the repository data changes |
+| 5 | If the screen unmounts first, **cleanup** sets `cancelled = true` | A late result no longer touches state (no update on an unmounted component) |
+| 6 | **Retry** changes `attempt` → cleanup of the old effect, then the effect runs again | The previous attempt's late result is ignored, only the newest one counts |
+
+### Render cycle 2 — typing in the search box
+
+`setQuery('virt')` re-renders immediately with the new `query`, so the text input stays responsive. The list uses `useDeferredValue(query)`: React first renders with the *old* deferred value (cheap), then renders again in the background with the new one. `useMemo` recomputes the filtered and sorted cards **only** when `rooms`, `devices`, the deferred query, the sort key or the direction changed; otherwise it returns the same array.
+
+### Render cycle 3 — a device is switched somewhere else
+
+`toggleDevice` → `repository.save()` → listeners run → every `useSyncExternalStore` subscriber compares the new snapshot with the old one **by reference**. Only the screens that read devices re-render, and `RoomCard` is wrapped in `memo`, so cards whose props did not change are skipped. Rooms, Home and Room detail all update from the same change without any manual refresh.
+
+### Effects, dependencies and cleanup in the code
+
+| Effect | Dependencies | Cleanup |
+|---|---|---|
+| `useLoadOnMount` (`shared/hooks/use-load-on-mount.ts`) | `[load, attempt]` | `cancelled = true`, so a stale or late result is ignored |
+| `useSyncExternalStore` subscription (rooms, devices, detail, home, new room) | `subscribe` function | Unsubscribes the listener when the component unmounts |
+
+### Two bugs this model explains (both have regression tests)
+
+- **Unstable snapshot → infinite render.** If `repository.getAll()` returned a *new* array on every call, `useSyncExternalStore` would see a "change" after every render and loop forever. `CachedRoomRepository` caches the mapped result per source (`tests/features/rooms/data/cached-room-repository.test.ts`, "returns the same reference until data changes").
+- **Unstable effect dependency → infinite effect.** `useLoadOnMount(() => load())` creates a new function each render, so the effect re-runs after every render. Pass a stable function such as the use case's `execute` (the hook documents this; the test passes `load` as a constant).
+
+## Verified On
+
+| Platform | How | Result |
+|---|---|---|
+| **Android 16** (emulator, Pixel API 36), Expo Go 58 | Ran the app and drove it with `adb`: Rooms list, sort dropdown (overlay and touch), room detail with switch and "⋮" menu, delete, New Room with device picker and save | Works. Screenshots in [`docs/verification/android/`](docs/verification/android) |
+| **iOS** (simulator, iPhone 18 Pro), Expo Go | Ran the app and drove it with the simulator: Rooms list, sort dropdown, room detail with switch, favourite and "⋮" menu, Home tab, Devices tab | Works. One bug found and fixed (see below). Screenshots in [`docs/verification/ios/`](docs/verification/ios) |
+
+**Bug found on iOS and fixed:** opening the Devices tab for the first time reset devices that a room had switched on, because the first load called `refresh()` and replaced them with the seed data. Report: [`docs/debugging/001-refresh-overwrites-local-changes.md`](docs/debugging/001-refresh-overwrites-local-changes.md). It has regression tests (`tests/regression.test.ts`).
+
+Notes from the Android run (before that fix; the Devices tab was not opened there): Expo Go draws its own floating gear button (the dev menu) in the top-right corner, over the header "+" button. It is not part of the app; the deep link `exp://<ip>:<port>?__expo_disable_fab=1` hides it. The "Add Device" label on the New Room tile sits very close to the tile's bottom edge on Android.
+
+## Tests
+
+Tests live in `tests/`, in the same folder structure as `src/`, so `src/features/rooms/domain/room-sorting.ts` is tested by `tests/features/rooms/domain/room-sorting.test.ts`. Two import aliases are configured in `tsconfig.json` and `package.json` (Jest):
+
+| Alias | Points to |
+|---|---|
+| `@/` | `src/` (e.g. `@/features/rooms/domain/room-sorting`) |
+| `@tests/` | `tests/` (e.g. `@tests/helpers/make-env`) |
+
+`tests/` is exempt from the "public API only" ESLint rule, so a test may import the internal file it tests. Never put tests inside `app/`: Expo Router would turn them into routes.
+
 ## Folder Structure
 
 ```
 smart-rooms/
-├── app/                                # Expo Router: every file is a route
-│   ├── _layout.tsx                     # RoomsProvider + root Stack
-│   ├── index.tsx                       # redirects to /rooms
+├── app/                                  # Expo Router: every file is a route (thin re-exports)
+│   ├── _layout.tsx                       # root Stack
+│   ├── index.tsx                         # redirects to /rooms
 │   ├── (tabs)/
-│   │   ├── _layout.tsx                 # 5 bottom tabs
-│   │   ├── rooms.tsx                   # SCREEN 1 – list
-│   │   ├── home.tsx                    # favourite rooms
-│   │   ├── devices.tsx                 # all devices
-│   │   ├── groups.tsx, more.tsx        # placeholders
+│   │   ├── _layout.tsx                   # 5 bottom tabs
+│   │   ├── rooms.tsx, home.tsx, devices.tsx
+│   │   └── groups.tsx, more.tsx          # placeholders
 │   └── room/
-│       ├── [id].tsx                    # SCREEN 2 – detail
-│       └── new.tsx                     # SCREEN 3 – create
+│       ├── [id].tsx                      # SCREEN 2 – detail
+│       └── new.tsx                       # SCREEN 3 – create
 ├── src/
-│   ├── types.ts                        # Room, Device, Action, SortKey, assertNever
-│   ├── theme.ts                        # colors
-│   ├── data/seed.ts, covers.ts         # initial rooms/devices, bundled images
-│   ├── store/rooms.tsx                 # reducer, 2 contexts, useRoom, powerOf
-│   ├── hooks/useSortedRooms.ts         # search + sort (useMemo, useDeferredValue)
-│   └── components/                     # IconButton, RoomCard, SortBar, SegmentedControl, Row
-├── assets/rooms/                       # cover images
+│   ├── di/container.ts                   # composition root
+│   ├── shared/                           # theme, routes, app-error, use-load-on-mount, generic components, in-memory store
+│   └── features/
+│       ├── rooms/                        # index.ts = public API
+│       │   ├── domain/                   # entities/, repositories/, use-cases/, room-with-power, room-sorting
+│       │   ├── data/                     # dto/, mappers/, sources/ (room-api, room-db), cached-room-repository, room-seed
+│       │   └── presentation/             # models/ (Display), mappers/, components/, assets/, hooks/, screens/
+│       ├── devices/                      # same three layers
+│       └── home/presentation/            # no data of its own: shows favourite rooms from the rooms feature
+├── tests/                                # mirrors src/: tests/features/rooms/domain/... tests the file in src/features/rooms/domain/...
+│   ├── helpers/make-env.ts               # fresh repositories + use cases for every test
+│   └── regression.test.ts
+├── docs/                                 # debugging reports and screenshots from the Android / iOS runs
+├── assets/rooms/                         # cover images
 ├── app.json
 ├── package.json
 └── tsconfig.json
 ```
 
+Naming: folders and files are `kebab-case`; each screen has a matching hook (`rooms-screen.tsx` + `use-rooms-screen.ts`) that holds its state and calls the use cases.
+
 ## Swift → React Native: Where Each Concept Lives
 
 | Swift / SwiftUI | React Native in this demo | Where |
 |---|---|---|
-| `enum` with associated values | Discriminated union `Action` + `assertNever` | `src/types.ts`, `src/store/rooms.tsx` |
-| `String?` | `string \| undefined` + early return | `useRoom(id)`, `app/room/[id].tsx` |
-| `protocol` / model `struct` | `interface Room`, `interface Device` | `src/types.ts` |
-| Dictionary `[String: Device]` | `Record<string, Device>` | `State.devices` |
-| Computed property | Derived value `powerOf(devices)` | `src/store/rooms.tsx` |
-| `@Observable` + `@Environment` | `useReducer` + two contexts + custom hooks | `src/store/rooms.tsx` |
+| `enum` with exhaustive `switch` | Literal union `SortKey` + `assertNever` | `room-sorting.ts`, `shared/domain/assert-never.ts` |
+| `String?` | `string \| undefined` + early return | `use-room-detail-screen.ts`, `room-detail-screen.tsx` |
+| `protocol` / model `struct` | `interface Room`, `interface RoomRepository` | `domain/entities`, `domain/repositories` |
+| Dictionary `[String: Device]` | `Record<string, Device>` (`DeviceMap`) | `devices/domain/entities/device.ts` |
+| Computed property | Derived value `powerOf(devices)` | `rooms/domain/room-with-power.ts` |
+| `@Observable` + `@Environment` | Repository + `useSyncExternalStore` in a screen hook | `cached-room-repository.ts`, `use-rooms-screen.ts` |
 | `@State` | `useState` (search, sort, tab, form) | screens |
-| Generic view `<T>` | `SegmentedControl<T extends string>` | `src/components/SegmentedControl.tsx` |
-| `LazyVGrid` | `FlatList numColumns={2}` | `app/(tabs)/rooms.tsx` |
+| Generic view `<T>` | `SegmentedControl<T extends string>` | `src/shared/components/segmented-control.tsx` |
+| `LazyVGrid` | `FlatList numColumns={2}` | `rooms-screen.tsx` |
 | `HStack` / `VStack`, modifiers | Flexbox + `StyleSheet`, style arrays | all components |
 | `Toggle`, `TextField`, `Button` | `Switch`, `TextInput`, `Pressable` | detail & new screens |
-| `.safeAreaInset` | `useSafeAreaInsets()` | custom header in `rooms.tsx` |
+| `.safeAreaInset` | `useSafeAreaInsets()` | custom header in `rooms-screen.tsx` |
 | `NavigationStack` + destination | Stack + dynamic route `room/[id]` | `app/_layout.tsx` |
-| `.toolbar { Button("Save") }` | `<Stack.Screen options={{ headerRight }} />` | `app/room/new.tsx` |
+| `.toolbar { Button("Save") }` | `<Stack.Screen options={{ headerRight }} />` | `new-room-screen.tsx` |
 | `TabView` | `Tabs` | `app/(tabs)/_layout.tsx` |
 | `dismiss()` | `router.back()` | after Save / Delete |
