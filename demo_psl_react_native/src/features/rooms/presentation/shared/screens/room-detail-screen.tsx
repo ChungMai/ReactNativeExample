@@ -37,6 +37,10 @@ export default function RoomDetailScreen() {
 
         {menuOpen && (
           <View style={styles.menu}>
+            <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); vm.editRoom() }}>
+              <Ionicons name="create-outline" size={18} color={colors.text} />
+              <Text style={{ color: colors.text }}>Edit room</Text>
+            </Pressable>
             <Pressable style={styles.menuItem} onPress={() => { setMenuOpen(false); vm.deleteRoom() }}>
               <Ionicons name="trash-outline" size={18} color={colors.danger} />
               <Text style={{ color: colors.danger }}>Delete room</Text>

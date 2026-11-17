@@ -11,4 +11,4 @@ export interface Room {
 export type NewRoom = Pick<Room, 'name' | 'cover' | 'deviceIds'>
 
 /** Fields that can be edited after creation. */
-export type RoomAttributes = Partial<Pick<Room, 'name' | 'cover' | 'favourite'>>
+export type RoomAttributes = Partial<Pick<Room, 'name' | 'cover' | 'favourite' | 'deviceIds'>>

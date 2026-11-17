@@ -14,3 +14,4 @@ export const RoomCard = adaptive(MobileRoomCard, DesktopRoomCard)
 // One UI for every size (no mobile/, desktop/ or web/ version yet)
 export { default as RoomDetailScreen } from './shared/screens/room-detail-screen'
 export { default as NewRoomScreen } from './shared/screens/new-room-screen'
+export { default as EditRoomScreen } from './shared/screens/edit-room-screen'

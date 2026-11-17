@@ -5,6 +5,6 @@ export class UpdateRoomAttributesUseCase {
   constructor(private repository: RoomRepository) {}
 
   execute(id: string, attributes: RoomAttributes) {
-    this.repository.save(this.repository.getAll().map(r => (r.id === id ? { ...r, ...attributes } : r)))
+    this.repository.save(this.repository.getAll().map(r => (r.id === id ? { ...r, ...attributes, ...(attributes.name !== undefined && { name: attributes.name.trim() }) } : r)))
   }
 }

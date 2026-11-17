@@ -1,5 +1,6 @@
 import { router } from 'expo-router'
 import { useMemo, useSyncExternalStore } from 'react'
+import { routes } from '../../../../../shared/routes'
 import { container } from '../../../../../di/container'
 import { toRoomWithDevices } from '../../../domain/room-with-power'
 import { toRoomDetailDisplay } from '../mappers/room-display-mapper'
@@ -16,6 +17,7 @@ export function useRoomDetailScreen(id: string | undefined) {
     setPower: (on: boolean) => detail && triggerRoom.execute(detail.room.id, on),
     toggleFavourite: () => detail && updateRoomAttributes.execute(detail.room.id, { favourite: !detail.room.favourite }),
     toggleDevice: (deviceId: string) => toggleDevice.execute(deviceId),
+    editRoom: () => detail && router.push(routes.editRoom(detail.room.id)),
     deleteRoom: () => {
       if (!detail) return
       deleteRoom.execute(detail.room.id)

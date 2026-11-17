@@ -22,6 +22,7 @@ export default function RootLayout() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="room/new" options={{ title: 'New Room' }} />
+        <Stack.Screen name="room/edit/[id]" options={{ title: 'Edit Room' }} />
         <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
         <Stack.Screen name="hooks-demo" options={{ title: 'Hooks Demo' }} />
       </Stack>

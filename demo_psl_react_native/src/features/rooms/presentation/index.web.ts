@@ -4,3 +4,4 @@ export { RoomCard } from './web/components/room-card'
 // One UI for both platforms (no mobile/ or web/ version yet)
 export { default as RoomDetailScreen } from './shared/screens/room-detail-screen'
 export { default as NewRoomScreen } from './shared/screens/new-room-screen'
+export { default as EditRoomScreen } from './shared/screens/edit-room-screen'
