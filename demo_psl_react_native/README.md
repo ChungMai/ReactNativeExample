@@ -13,7 +13,7 @@ cd smart-rooms
 npm install
 npx expo start        # press i for iOS Simulator, w for web, or scan the QR code with Expo Go
 npm run typecheck     # 0 errors (run `npx expo start` once first: it generates the typed-route types in .expo/types)
-npm test              # 145 unit tests (Jest + React Native Testing Library)
+npm test              # 194 unit tests (Jest + React Native Testing Library)
 npm run lint          # ESLint: Expo rules + architecture boundaries
 ```
 
@@ -27,7 +27,7 @@ Don't run `npm audit fix --force` — it moves packages outside the versions Exp
 | **2. Room detail** | `/room/[id]` | Header title + "⋮" menu (Delete room), cover image, Manage / Devices / Presets segmented control, room power switch, Add to Favourites |
 | **3. New Room** | `/room/new` | Header Save button (disabled until a name is entered), camera button to change the cover, room name, "Add Device" tile with a device picker |
 
-The other tabs are small extras: **Home** shows favourite rooms, **Devices** lists every device with a switch, **Groups** and **More** are placeholders.
+The other tabs are small extras: **Home** shows favourite rooms, **Devices** lists every device with a switch, **Groups** keeps a small list in `useState`, and **More** is a menu whose entry **React hooks demo** opens `src/features/hooks-demo`: runnable examples of `useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`, `useReducer`, `useContext`, custom hooks and the React Native hooks (its own README explains each one).
 
 ## Suggested Demo Flow (about 4 minutes)
 
@@ -100,6 +100,66 @@ presentation  ──►  domain  ◄──  data
 - Three models per concept: **entity** (domain) → **DTO** (data) → **Display** (presentation), joined by mappers.
 - `src/di/container.ts` is the only place that creates concrete classes and wires them together.
 - Each feature has a **public API**, `src/features/<name>/index.ts`. Other features and `app/` import only from there; ESLint (`eslint.config.js`) rejects deep imports, domain → data/presentation imports, and React / React Native / Expo Router inside domain and data. `src/di` and `tests/` are exempt.
+
+### One app, three UIs (iPhone, iPad + Mac, web)
+
+The same domain, data and view models drive three different user interfaces:
+
+| Device | Navigation | Layout |
+|---|---|---|
+| **iPhone** (and iPad in a narrow Split View) | bottom tab bar | 2-column grid, native headers |
+| **iPad and Mac** (a Mac runs the iPad app: "Designed for iPad") | left menu (sidebar) | page header, search field, grid that fills the window, grouped lists |
+| **Web** | left menu, shrinks to icons below 768px | page header, search box, "New room" button, tables |
+
+Nothing below the UI knows which one is running — that is the point of the layering.
+
+Inside every feature, `presentation/` is split into four folders, so the folder name tells you who uses a file:
+
+```
+rooms/presentation/
+├── shared/     used by EVERY device: hooks (view models), models, mappers, assets,
+│               and UI that is identical everywhere (sort-bar, room-detail-screen, new-room-screen)
+├── mobile/     iPhone:               screens/rooms-screen.tsx, components/room-card.tsx
+├── desktop/     iPad + Mac:           screens/rooms-screen.tsx, components/room-card.tsx
+├── web/        browser:              screens/rooms-screen.tsx, components/room-card.tsx
+├── index.native.ts   ← iOS + Android: picks mobile/ or desktop/ by window size, plus shared/
+└── index.web.ts      ← web:           picks web/ plus shared/
+```
+
+```
+ mobile/rooms-screen.tsx ─┐                                         ┌─ use cases → repositories → data
+ desktop/rooms-screen.tsx ─┼→ shared/use-rooms-screen (view model) ──┤
+ web/rooms-screen.tsx    ─┘                                         └─ (domain/ and data/ never see the UI)
+```
+
+| Folder | Contains | May import |
+|---|---|---|
+| `shared/` | view models, models, mappers, UI used on every device | `domain/`, other `shared/` files — **not** `mobile/`, `desktop/` or `web/` |
+| `mobile/` | iPhone UI | `shared/` — **not** `desktop/` or `web/` |
+| `desktop/` | iPad and Mac UI | `shared/` — **not** `mobile/` or `web/` |
+| `web/` | browser UI | `shared/` — **not** `mobile/` or `desktop/` |
+
+These rules are enforced by ESLint (`npm run lint`): a `web/` file that imports from `desktop/` is a lint error.
+
+**How the right folder is picked.** Two decisions, both in one small file per feature:
+
+1. *Platform* (web or native): Metro loads `index.web.ts` on web and `index.native.ts` on iOS and Android. The feature's public `index.ts` just says `export { RoomsScreen } from './presentation'`, so the routes in `app/` and the Home feature stay platform-neutral.
+2. *Window size* (iPhone or iPad/Mac), live: `index.native.ts` uses `adaptive(MobileRoomsScreen, DesktopRoomsScreen)`. It looks at the window width (`src/shared/hooks/use-size-class.ts`): below 768 points is **compact** (iPhone, iPad in a narrow Split View), 768 and above is **regular** (iPad full screen, a Mac window). Deciding by width instead of "is this an iPad?" means the UI switches while you resize a Mac window or open Split View.
+
+**Running on a Mac.** On an Apple Silicon Mac the app runs as an iPad app ("Designed for iPad"), so the Mac gets the `desktop/` UI with no extra code. `app.json` has `ios.supportsTablet: true` (required), lets the iPad rotate freely while phones stay portrait, and sets `bundleIdentifier` and `appleTeamId` (change both to your own).
+
+```bash
+npx expo prebuild --platform ios      # creates the ios/ project (generated, git-ignored; needs Xcode and CocoaPods)
+open ios/SmartRooms.xcworkspace       # in Xcode: destination "My Mac (Designed for iPad)", then Run
+```
+
+Notes from the first run: Xcode must be allowed to register the Mac in your developer account (a development profile lists the device; Xcode does this when you press Run with automatic signing). Expo Go does not run on a Mac. The Run action uses the **Release** configuration, so the JavaScript is embedded in the app and no Metro server is needed (a Debug build would load JavaScript from `localhost:8081`). For a Mac app that is not an iPad app you would need a separate native target (`react-native-macos`), or to wrap the web build in Electron; the `web/` UI already exists for that.
+
+The navigation shell uses the same folders: `src/shared/navigation/shared/` has `nav-items.ts` (the one list of destinations), the `sidebar` and the `sidebar-shell` (used by iPad, Mac and web); `mobile/` has the bottom tabs. Layout helpers for wide windows live in `src/shared/components/` (`page-header`, `card-grid`, `readable-width`) and `src/shared/layout.ts`.
+
+What changes per device: the desktop and web Rooms pages have an always-visible search field (iPhone toggles it from a header icon), cards fill a responsive grid, Devices and Groups are grouped lists (desktop) or tables (web). What does not change: every screen's behaviour, because it all lives in the view model. The tests show it: `mobile/`, `desktop/` and `web/` each have a `rooms-screen.test.tsx` that runs against the same view model.
+
+To add a new destination, add one entry to `src/shared/navigation/shared/nav-items.ts` and a file in `app/(tabs)/`: every menu picks it up. To give a screen its own desktop or web UI, create `desktop/screens/<name>.tsx` (or `web/...`) and point the entry file at it. Room detail and New Room are still in `shared/screens/` (one UI everywhere, centred and capped at 720 points wide on big screens).
 
 ### Errors, loading and empty states
 
@@ -178,7 +238,7 @@ smart-rooms/
 │   ├── _layout.tsx                       # root Stack
 │   ├── index.tsx                         # redirects to /rooms
 │   ├── (tabs)/
-│   │   ├── _layout.tsx                   # 5 bottom tabs
+│   │   ├── _layout.tsx                   # bottom tabs on mobile, page slot on web (src/shared/navigation)
 │   │   ├── rooms.tsx, home.tsx, devices.tsx
 │   │   └── groups.tsx, more.tsx          # placeholders
 │   └── room/
@@ -187,11 +247,12 @@ smart-rooms/
 ├── src/
 │   ├── di/container.ts                   # composition root
 │   ├── shared/                           # theme, routes, app-error, use-load-on-mount, generic components, in-memory store
+│   │   └── navigation/                   # shared/ (nav-items, sidebar, sidebar-shell), mobile/ (bottom tabs), index.native.ts (adaptive), index.web.ts
 │   └── features/
 │       ├── rooms/                        # index.ts = public API
 │       │   ├── domain/                   # entities/, repositories/, use-cases/, room-with-power, room-sorting
 │       │   ├── data/                     # dto/, mappers/, sources/ (room-api, room-db), cached-room-repository, room-seed
-│       │   └── presentation/             # models/ (Display), mappers/, components/, assets/, hooks/, screens/
+│       │   └── presentation/             # shared/ (hooks, models, mappers, assets, common UI), mobile/, desktop/, web/, index.native.ts, index.web.ts
 │       ├── devices/                      # same three layers
 │       └── home/presentation/            # no data of its own: shows favourite rooms from the rooms feature
 ├── tests/                                # mirrors src/: tests/features/rooms/domain/... tests the file in src/features/rooms/domain/...
@@ -204,7 +265,7 @@ smart-rooms/
 └── tsconfig.json
 ```
 
-Naming: folders and files are `kebab-case`; each screen has a matching hook (`rooms-screen.tsx` + `use-rooms-screen.ts`) that holds its state and calls the use cases.
+Naming: folders and files are `kebab-case`; each screen has a matching hook (`mobile/`, `desktop/` and `web/` `screens/rooms-screen.tsx` + `shared/hooks/use-rooms-screen.ts`) that holds its state and calls the use cases.
 
 ## Swift → React Native: Where Each Concept Lives
 
