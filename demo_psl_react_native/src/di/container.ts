@@ -28,6 +28,7 @@ export const container = {
   loadDevices: new LoadDevicesUseCase(deviceRepository),
   getAllDevices: new GetAllDevicesUseCase(deviceRepository),
   toggleDevice: new ToggleDeviceUseCase(deviceRepository),
+  setDevicesPower,
   // rooms
   loadRooms: new LoadRoomsUseCase(roomRepository),
   getAllRooms: new GetAllRoomsUseCase(roomRepository),
