@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "Smart Rooms",
+    "slug": "smart-rooms",
+    "scheme": "smartrooms",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router"
+    ],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
+      },
+      "bundleIdentifier": "com.maichung.smartrooms",
+      "appleTeamId": "GY3LBHJTSH"
+    }
+  }
+}
