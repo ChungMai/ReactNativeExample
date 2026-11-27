@@ -1,6 +1,6 @@
 // MOBILE: no extra frame around the screens; the tab bar is the navigation.
-import type { ReactNode } from 'react'
+import type { ShellProps } from '../shared/sidebar-shell'
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children }: ShellProps) {
   return <>{children}</>
 }

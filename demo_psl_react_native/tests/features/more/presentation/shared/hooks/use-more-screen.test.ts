@@ -9,7 +9,7 @@ describe('useMoreScreen', () => {
 
   it('lists the hooks demo as a menu entry', async () => {
     const { result } = await renderHook(() => useMoreScreen())
-    expect(result.current.items.map(i => i.id)).toEqual(['hooks-demo'])
+    expect(result.current.items.map(i => i.id)).toEqual(['hooks-demo', 'logout'])
     expect(result.current.items[0].title).toBe('React hooks demo')
   })
 

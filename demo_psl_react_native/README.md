@@ -27,13 +27,47 @@ Don't run `npm audit fix --force` — it moves packages outside the versions Exp
 | **2. Room detail** | `/room/[id]` | Header title + "⋮" menu (Delete room), cover image, Manage / Devices / Presets segmented control, room power switch, Add to Favourites |
 | **3. New Room** | `/room/new` | Header Save button (disabled until a name is entered), camera button to change the cover, room name, "Add Device" tile with a device picker |
 
-The other tabs are small extras: **Home** shows favourite rooms, **Devices** lists every device with a switch, **Groups** keeps a small list in `useState`, and **More** is a menu whose entry **React hooks demo** opens `src/features/hooks-demo`: runnable examples of `useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`, `useReducer`, `useContext`, custom hooks and the React Native hooks (its own README explains each one).
+The other tabs are small extras: **Home** is described below, **Devices** lists every device with a switch, **Groups** keeps a small list in `useState`, and **More** is a menu whose entry **React hooks demo** opens `src/features/hooks-demo`: runnable examples of `useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`, `useReducer`, `useContext`, custom hooks and the React Native hooks (its own README explains each one).
+
+## Login
+
+The app opens on a login screen, a port of the Swift `LoginViewController` and `LoginViewPresenter`. Demo account: `demo@example.com` / `demo1234` (also shown on the screen). **More → Log out** brings you back.
+
+Ported: the field checks and their messages, show/hide password, "Keep me signed in" (the session lasts 30 days instead of 1), the remembered email, loading and error states. Routes are guarded with `Stack.Protected` in `app/_layout.tsx`: list every new route file there.
+
+**Real sign-in (AWS Cognito).** Copy `.env.example` to `.env.local`, set `EXPO_PUBLIC_AUTH_SERVER_URL` and restart `npx expo start`. Each environment of the real system has its own user pool, so use the server your account belongs to. The app asks that server for the user pool (as the Swift app does) and signs in with SRP (`amazon-cognito-identity-js`), like the Swift app. `metro.config.js` gives that library a secure random source on iOS and Android. Its arithmetic runs in JavaScript, so signing in takes about 10 seconds in the simulator. Tokens and passwords are not stored. Without the variable, only the demo account works. `.env.local` is git-ignored: do not commit server addresses or accounts.
+
+Not ported: biometric login, registration, forgot password, email verification, Keycloak servers and the terms pages. The session survives a restart: `expo-secure-store` (Keychain / Keystore) on iOS and Android, `localStorage` on web (only the email and sign-in time; a real token would need an HttpOnly cookie). An expired session is dropped at launch. The password is never stored.
+
+**Choose another server?** on the login screen ports the Swift `SelectServerViewController`: Default Server, servers used before (removable) or a custom address. A server is only selected after it returned a sign-in configuration; the choice is remembered. Only `https` and Cognito servers are supported. `Default Server` is `EXPO_PUBLIC_AUTH_SERVER_URL`, or the demo account when that is not set.
+
+## Network list
+
+After login comes the list of networks, a port of the Swift `PSLNetworkListViewController` and `PSLNetworkListViewModel`; choosing one opens Home, and the network name on Home leads back. The demo has one joined network for each outcome: **My Home** (local) and **Beach House** (remote) open, **Office** refuses remote access, **Garage** cannot be reached. Two nearby networks show the join request and the "other server" message.
+
+Ported: joined and nearby lists with access mode, join request, delete (type the name) and leave with the same rules, 15-second polling, offline list. Swipe actions are a **⋮** button here, and the profile button is **Log out**. Not ported: creating a network, troubleshooting, local network discovery, server selection. The chosen network is not saved, so after a restart you choose again. Every network shows the same demo devices on Home.
+
+## Home
+
+A port of the Home page of the Swift app (`HomeMainViewController` and its presenter): network name with access mode and server status, "+" and "more" menus, the "switched on" summary, and favourite scenes, devices, rooms, groups, zones and presets. A tap switches or triggers an object, a long press (web and iPad: the arrow button) opens its page. It reloads every 10 seconds while on screen, supports pull to refresh, shows cached data as "Offline" when a refresh fails, and honours the customisation data (default or grid layout, section order, titles, hidden sections).
+
+| Swift | Here (`src/features/home`) |
+|---|---|
+| `HomeInfo`, `PSLHomeCustomizationData` | `domain/entities`, `data/dto`, `data/mappers` |
+| `makeActiveAccessoriesInfo`, `sortItem` | `domain/build-home-overview.ts` |
+| `doQuickAction`, `handleFavorites`, `loadInitalData` | `domain/use-cases` |
+| `HomeMainCachedHelper` | `data/cached-home-repository.ts` (in memory) |
+| `HomeMainViewPresenter` | `presentation/shared/hooks/use-home-screen.ts` |
+
+Not ported: quick-control panels, Add Device / Add Hub / Create Zone, network list, the "Personalise your home screen" editor, background images, the shrinking header on scroll. The hub is a stub (`FakeHomeApi`); to see the offline state, build it with an `AppError` in `di/container.ts`.
 
 ## Suggested Demo Flow (about 4 minutes)
 
+Sign in with the demo account first (the app stays signed in; **More → Log out** to start over) and choose **My Home**.
+
 1. **Rooms list** — show sorting (arrow button, then *Recently added*) and search (🔍, type "virt").
 2. Open **Virtual Room** — flip the **Switch**: the label changes to *Switch On*.
-3. Tap **Add to Favourites** — the heart fills in; go to the **Home** tab to see the room there.
+3. Tap **Add to Favourites** — the heart fills in; go to the **Home** tab to see the room there, among the other favourites.
 4. Back on **Rooms** — the badge on Virtual Room now says **On**. Point out that power is *derived* from devices, never stored.
 5. Tap **＋** — type "Kitchen", tap the camera to change the cover, add a device, **Save**. The new room appears in the grid.
 6. Open **Kitchen** → **⋮** → **Delete room**.
@@ -254,7 +288,7 @@ smart-rooms/
 │       │   ├── data/                     # dto/, mappers/, sources/ (room-api, room-db), cached-room-repository, room-seed
 │       │   └── presentation/             # shared/ (hooks, models, mappers, assets, common UI), mobile/, desktop/, web/, index.native.ts, index.web.ts
 │       ├── devices/                      # same three layers
-│       └── home/presentation/            # no data of its own: shows favourite rooms from the rooms feature
+│       └── home/                         # domain, data, presentation: the favourites dashboard
 ├── tests/                                # mirrors src/: tests/features/rooms/domain/... tests the file in src/features/rooms/domain/...
 │   ├── helpers/make-env.ts               # fresh repositories + use cases for every test
 │   └── regression.test.ts

@@ -5,7 +5,7 @@ import { makeEnv } from '@tests/helpers/make-env'
 import HomeScreen from '@/features/home/presentation/web/screens/home-screen'
 
 jest.mock('@/di/container', () => ({ container: {} }))
-jest.mock('expo-router', () => ({ router: { push: jest.fn(), back: jest.fn() } }))
+jest.mock('expo-router', () => jest.requireActual('@tests/helpers/mock-home-router'))
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -13,25 +13,46 @@ beforeEach(() => {
 })
 
 describe('HomeScreen (web)', () => {
-  it('shows the favourite rooms under the page title', async () => {
+  it('shows the network, the summary and the favourite sections', async () => {
     await render(<HomeScreen />)
-    expect(screen.getByRole('heading', { name: 'Favourite rooms' })).toBeTruthy()
+    expect(screen.getByText('My Home')).toBeTruthy()
+    expect(screen.getByText('Online')).toBeTruthy()
+    expect(screen.getByText('1 Device')).toBeTruthy()
+    expect(screen.getByText('Favourite Rooms')).toBeTruthy()
     expect(screen.getByText('Room 11')).toBeTruthy()
     expect(screen.queryByText('Bedroom')).toBeNull()
   })
 
-  it('shows the web empty state and updates live', async () => {
-    container.updateRoomAttributes.execute('r1', { favourite: false })
+  it('switches a device when its card is pressed', async () => {
     await render(<HomeScreen />)
-    expect(screen.getByText(/Add to Favourites/)).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Ceiling light, off' }))
+    expect(screen.getByRole('button', { name: 'Ceiling light, on' })).toBeTruthy()
+    expect(screen.getByText('2 Devices')).toBeTruthy()
+  })
 
+  it('updates live when a room becomes a favourite', async () => {
+    await render(<HomeScreen />)
     await act(async () => container.updateRoomAttributes.execute('r3', { favourite: true }))
     expect(screen.getByText('Bedroom')).toBeTruthy()
   })
 
-  it('opens a room when its card is pressed', async () => {
+  it('opens the "+" menu and goes to New Room', async () => {
     await render(<HomeScreen />)
-    await fireEvent.press(screen.getByRole('button', { name: 'Room 11' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Add' }))
+    await fireEvent.press(screen.getByRole('menuitem', { name: 'Create Room' }))
+    expect(router.push).toHaveBeenCalledWith('/room/new')
+    expect(screen.queryByRole('menuitem', { name: 'Create Room' })).toBeNull()
+  })
+
+  it('explains the server status', async () => {
+    await render(<HomeScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Server Online' }))
+    expect(screen.getByText('The server is online and connected.')).toBeTruthy()
+  })
+
+  it('opens the room page with the details button', async () => {
+    await render(<HomeScreen />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Open Room 11' }))
     expect(router.push).toHaveBeenCalledWith({ pathname: '/room/[id]', params: { id: 'r1' } })
   })
 })

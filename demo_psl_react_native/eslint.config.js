@@ -2,7 +2,7 @@
 const { defineConfig } = require('eslint/config')
 const expo = require('eslint-config-expo/flat')
 
-const FEATURES = ['rooms', 'devices', 'home', 'groups', 'more']
+const FEATURES = ['auth', 'networks', 'rooms', 'devices', 'home', 'groups', 'more']
 const LAYERS = ['domain', 'data', 'presentation']
 
 // A feature's inside (domain/data/presentation) may only be reached through its index.ts.

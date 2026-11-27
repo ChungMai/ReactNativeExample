@@ -14,12 +14,12 @@ export type NavItem = {
   href: Href
   /** Path prefixes that highlight this item (the Rooms item is also active on /room/[id]) */
   match: string[]
-  /** Show the native header on mobile. Rooms draws its own header. */
+  /** Show the native header on mobile. Home and Rooms draw their own header. */
   header: boolean
 }
 
 export const navItems: NavItem[] = [
-  { name: 'home', title: 'Home', icon: 'home', href: '/home' as Href, match: ['/home'], header: true },
+  { name: 'home', title: 'Home', icon: 'home', href: '/home' as Href, match: ['/home', '/favourites'], header: false },
   { name: 'devices', title: 'Devices', icon: 'bulb', href: '/devices' as Href, match: ['/devices'], header: true },
   { name: 'rooms', title: 'Rooms', icon: 'cube', href: '/rooms' as Href, match: ['/rooms', '/room'], header: false },
   { name: 'groups', title: 'Groups', icon: 'aperture', href: '/groups' as Href, match: ['/groups'], header: true },

@@ -4,3 +4,4 @@ import MobileHomeScreen from './mobile/screens/home-screen'
 import DesktopHomeScreen from './desktop/screens/home-screen'
 
 export const HomeScreen = adaptive(MobileHomeScreen, DesktopHomeScreen)
+export { default as AddFavouritesScreen } from './shared/screens/add-favourites-screen'

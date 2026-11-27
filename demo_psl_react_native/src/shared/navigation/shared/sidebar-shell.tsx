@@ -5,10 +5,13 @@ import { View } from 'react-native'
 import { colors } from '../../theme'
 import { Sidebar } from './sidebar'
 
-export function SidebarShell({ children }: { children: ReactNode }) {
+/** `showMenu` is false on screens without navigation (login). Phones have no menu to hide. */
+export type ShellProps = { children: ReactNode; showMenu?: boolean }
+
+export function SidebarShell({ children, showMenu = true }: ShellProps) {
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: colors.bg }}>
-      <Sidebar />
+      {showMenu ? <Sidebar /> : null}
       <View style={{ flex: 1 }}>{children}</View>
     </View>
   )

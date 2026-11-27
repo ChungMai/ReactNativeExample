@@ -1,13 +1,20 @@
-// Root layout: a Stack holds the tabs,
-// the room detail screen and the "New Room" screen.
+// Root layout, in three steps: login → network list → the app (tabs and the screens above them).
+// Moving between steps is automatic when the session or the active network changes.
+// Every route file must be listed in one of the guards.
 import { Stack } from 'expo-router'
+import { useSession } from '../src/features/auth'
+import { useActiveNetwork } from '../src/features/networks'
 import { AppShell } from '../src/shared/navigation'
 import { colors } from '../src/shared/theme'
 
 // AppShell adds the left menu on web and nothing on mobile (mobile uses the bottom tabs).
 export default function RootLayout() {
+  const signedIn = useSession() !== undefined
+  const network = useActiveNetwork()
+  const inNetwork = signedIn && network !== undefined
+
   return (
-    <AppShell>
+    <AppShell showMenu={inNetwork}>
       <Stack
         screenOptions={{
           headerTitleAlign: 'center',
@@ -20,11 +27,22 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: colors.bg },
         }}
       >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="room/new" options={{ title: 'New Room' }} />
-        <Stack.Screen name="room/edit/[id]" options={{ title: 'Edit Room' }} />
-        <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
-        <Stack.Screen name="hooks-demo" options={{ title: 'Hooks Demo' }} />
+        <Stack.Protected guard={inNetwork}>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="room/new" options={{ title: 'New Room' }} />
+          <Stack.Screen name="room/edit/[id]" options={{ title: 'Edit Room' }} />
+          <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
+          <Stack.Screen name="favourites/add" options={{ title: 'Add to Favourites' }} />
+          <Stack.Screen name="hooks-demo" options={{ title: 'Hooks Demo' }} />
+        </Stack.Protected>
+        <Stack.Protected guard={signedIn && !inNetwork}>
+          <Stack.Screen name="networks" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!signedIn}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="select-server" options={{ title: '' }} />
+        </Stack.Protected>
       </Stack>
     </AppShell>
   )
