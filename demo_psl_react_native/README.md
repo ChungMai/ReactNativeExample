@@ -35,17 +35,21 @@ The app opens on a login screen, a port of the Swift `LoginViewController` and `
 
 Ported: the field checks and their messages, show/hide password, "Keep me signed in" (the session lasts 30 days instead of 1), the remembered email, loading and error states. Routes are guarded with `Stack.Protected` in `app/_layout.tsx`: list every new route file there.
 
-**Real sign-in (AWS Cognito).** Copy `.env.example` to `.env.local`, set `EXPO_PUBLIC_AUTH_SERVER_URL` and restart `npx expo start`. Each environment of the real system has its own user pool, so use the server your account belongs to. The app asks that server for the user pool (as the Swift app does) and signs in with SRP (`amazon-cognito-identity-js`), like the Swift app. `metro.config.js` gives that library a secure random source on iOS and Android. Its arithmetic runs in JavaScript, so signing in takes about 10 seconds in the simulator. Tokens and passwords are not stored. Without the variable, only the demo account works. `.env.local` is git-ignored: do not commit server addresses or accounts.
+**Real sign-in (AWS Cognito).** Copy `.env.example` to `.env.local`, set `EXPO_PUBLIC_AUTH_SERVER_URL` and restart `npx expo start`. Each environment of the real system has its own user pool, so use the server your account belongs to. The app asks that server for the user pool (as the Swift app does) and signs in with SRP (`amazon-cognito-identity-js`), like the Swift app. `metro.config.js` gives that library a secure random source on iOS and Android. Its arithmetic runs in JavaScript, so signing in takes about 10 seconds in the simulator. The password is not stored. Without the variable, only the demo account works. `.env.local` is git-ignored: do not commit server addresses or accounts.
 
 Not ported: biometric login, registration, forgot password, email verification, Keycloak servers and the terms pages. The session survives a restart: `expo-secure-store` (Keychain / Keystore) on iOS and Android, `localStorage` on web (only the email and sign-in time; a real token would need an HttpOnly cookie). An expired session is dropped at launch. The password is never stored.
 
 **Choose another server?** on the login screen ports the Swift `SelectServerViewController`: Default Server, servers used before (removable) or a custom address. A server is only selected after it returned a sign-in configuration; the choice is remembered. Only `https` and Cognito servers are supported. `Default Server` is `EXPO_PUBLIC_AUTH_SERVER_URL`, or the demo account when that is not set.
+
+**Web and CORS.** The real server sends no CORS headers, so in development the web app reads the sign-in configuration and the network list through the Expo dev server (`dev-proxy.js`). Set `DEV_PROXY_ALLOWED_HOSTS` in `.env.local` (see `.env.example`) and restart `npx expo start`. The proxy only serves a browser on the same machine, only those two paths, only the listed https hosts. A deployed web build does not use it and needs CORS on the server.
 
 ## Network list
 
 After login comes the list of networks, a port of the Swift `PSLNetworkListViewController` and `PSLNetworkListViewModel`; choosing one opens Home, and the network name on Home leads back. The demo has one joined network for each outcome: **My Home** (local) and **Beach House** (remote) open, **Office** refuses remote access, **Garage** cannot be reached. Two nearby networks show the join request and the "other server" message.
 
 Ported: joined and nearby lists with access mode, join request, delete (type the name) and leave with the same rules, 15-second polling, offline list. Swipe actions are a **⋮** button here, and the profile button is **Log out**. Not ported: creating a network, troubleshooting, local network discovery, server selection. The chosen network is not saved, so after a restart you choose again. Every network shows the same demo devices on Home.
+
+**Real list.** After a real sign-in the list comes from `GET <server>/app/networks` with the Cognito access token, as in the Swift app. It is **read only** (no join, delete, leave or create), has no "Nearby" section and shows every network as Remote Access, because there is no local discovery; a network without remote access therefore cannot be opened. The refresh token is kept in the Keychain / Keystore and the access token in memory; on web both are in memory only. The demo account still gets the demo list.
 
 ## Home
 

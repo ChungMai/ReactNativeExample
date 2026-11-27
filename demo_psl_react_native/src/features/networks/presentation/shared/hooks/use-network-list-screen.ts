@@ -56,11 +56,17 @@ export function useNetworkListScreen() {
   const [busy, setBusy] = useState(false)
   const [expanded, setExpanded] = useState<string | null>(null)
   const working = useRef(false) // state updates too late to stop a second tap
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Load on arrival and poll while visible. A failure shows up as "Offline" with the cached list.
   useFocusEffect(
     useCallback(() => {
-      const poll = () => { refreshNetworks.execute().catch(() => {}) }
+      const poll = () => {
+        refreshNetworks.execute().then(
+          () => setLoadError(null),
+          e => setLoadError(toAppError(e).message),
+        )
+      }
       poll()
       const timer = setInterval(poll, POLL_INTERVAL_MS)
       return () => clearInterval(timer)
@@ -160,13 +166,16 @@ export function useNetworkListScreen() {
     loading: !list.loaded,
     busy,
     serverOnline: list.serverOnline,
+    readOnly: list.readOnly,
+    // technical text, for development builds only
+    loadError: __DEV__ ? loadError : null,
     joined: list.joined.map(network => ({
       id: network.id,
       name: network.name,
       modeLabel: MODE_LABELS[network.mode],
       troubleshoot: network.mode === 'troubleshoot',
       expanded: expanded === network.id,
-      actions: availableActions(network).map((action: NetworkAction) => ({
+      actions: (list.readOnly ? [] : availableActions(network)).map((action: NetworkAction) => ({
         label: action === 'delete' ? `Delete ${network.name}` : `Leave ${network.name}`,
         title: action === 'delete' ? 'Delete' : 'Leave',
         enabled: isActionEnabled(action, network, list.serverOnline),

@@ -9,3 +9,5 @@ const storageAt = (key: string): TextStorage => ({
 
 export const secureStorage = storageAt('auth.session')
 export const serverStorage = storageAt('auth.server')
+export const tokenOwnerStorage = storageAt('auth.tokenOwner')
+export const refreshTokenStorage = storageAt('auth.refreshToken')

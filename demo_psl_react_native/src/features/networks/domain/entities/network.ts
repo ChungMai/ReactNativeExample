@@ -24,6 +24,8 @@ export interface NetworkList {
   joined: JoinedNetwork[]
   nearby: NearbyNetwork[]
   serverOnline: boolean
+  /** true when joining, deleting and leaving are not available. */
+  readOnly: boolean
   /** false until the first answer (success or failure) from the server. */
   loaded: boolean
 }

@@ -3,7 +3,11 @@ import { SessionAuthRepository } from '../features/auth/data/session-auth-reposi
 import { DEMO_ACCOUNT, FakeAuthApi } from '../features/auth/data/sources/auth-api'
 import { CognitoAuthApi } from '../features/auth/data/sources/cognito-auth-api'
 import { fetchCognitoPool } from '../features/auth/data/sources/auth-server'
-import { secureStorage, serverStorage } from '../features/auth/data/sources/secure-storage'
+import { AccessTokenProvider, SessionExpiredError } from '../features/auth/data/sources/access-token-provider'
+import { refreshTokenStorage, secureStorage, serverStorage, tokenOwnerStorage } from '../features/auth/data/sources/secure-storage'
+import { TokenVault } from '../features/auth/data/sources/token-vault'
+import { CloudNetworkApi } from '../features/networks/data/sources/cloud-network-api'
+import { SwitchingNetworkApi } from '../features/networks/data/sources/switching-network-api'
 import { SelectedServerAuthApi } from '../features/auth/data/sources/selected-server-auth-api'
 import { StoredServerRepository } from '../features/auth/data/stored-server-repository'
 import { ConnectServerUseCase } from '../features/auth/domain/use-cases/connect-server'
@@ -14,6 +18,7 @@ import { GetSessionUseCase } from '../features/auth/domain/use-cases/get-session
 import { LoginUseCase } from '../features/auth/domain/use-cases/login'
 import { LogoutUseCase } from '../features/auth/domain/use-cases/logout'
 import { RestoreSessionUseCase } from '../features/auth/domain/use-cases/restore-session'
+import { serverFetch } from '../shared/data/server-fetch'
 import { CachedDeviceRepository } from '../features/devices/data/cached-device-repository'
 import { FakeDeviceApi } from '../features/devices/data/sources/device-api'
 import { InMemoryDeviceDb } from '../features/devices/data/sources/device-db'
@@ -53,14 +58,35 @@ const roomRepository = new CachedRoomRepository(new FakeRoomApi(), new InMemoryR
 // The default server comes from .env.local (not committed). Without it, the default is the demo account;
 // other servers can still be chosen on the login screen.
 const defaultServer = process.env.EXPO_PUBLIC_AUTH_SERVER_URL
-const serverRepository = new StoredServerRepository(serverStorage, async url => { await fetchCognitoPool(url) })
+const serverRepository = new StoredServerRepository(serverStorage, async url => { await fetchCognitoPool(url, serverFetch) })
+const tokenVault = new TokenVault(tokenOwnerStorage, refreshTokenStorage)
+const credentials = new AccessTokenProvider(tokenVault)
 const authApi = new SelectedServerAuthApi(
-  serverRepository.get, defaultServer, url => new CognitoAuthApi(url), new FakeAuthApi())
-const authRepository = new SessionAuthRepository(authApi, new PersistentSessionStore(secureStorage))
+  serverRepository.get,
+  defaultServer,
+  url => new CognitoAuthApi(url, serverFetch, undefined, tokens => tokenVault.save(tokens)),
+  new FakeAuthApi(),
+  () => tokenVault.clear(),
+)
+const sessionStore = new PersistentSessionStore(secureStorage)
+const authRepository = new SessionAuthRepository(authApi, sessionStore, () => tokenVault.clear())
+// A real sign-in without its tokens (e.g. on web after a reload) cannot call the server: start over.
+const restoredEmail = authRepository.getSession()?.email
+if (restoredEmail && restoredEmail !== DEMO_ACCOUNT.email && !tokenVault.get()) authRepository.clearSession()
 // Drop an expired session before the first screen is drawn (Swift: the splash screen's auto login).
 const restoreSession = new RestoreSessionUseCase(authRepository)
 restoreSession.execute()
-const networkRepository = new CachedNetworkRepository(new FakeNetworkApi())
+// The server rejected the sign-in: back to the login screen. Returns true when that was the case.
+const signOutIfExpired = (error: unknown) => {
+  if (error !== undefined && !(error instanceof SessionExpiredError)) return false
+  logout.execute()
+  return true
+}
+const networkRepository: CachedNetworkRepository = new CachedNetworkRepository(new SwitchingNetworkApi(
+  () => credentials.server() !== undefined,
+  new CloudNetworkApi(credentials, signOutIfExpired, serverFetch),
+  new FakeNetworkApi(),
+))
 const leaveActiveNetwork = new LeaveActiveNetworkUseCase(networkRepository)
 const logoutSession = new LogoutUseCase(authRepository)
 const homeRepository = new CachedHomeRepository(new FakeHomeApi())
@@ -72,6 +98,9 @@ const loadRooms = new LoadRoomsUseCase(roomRepository)
 const updateRoomAttributes = new UpdateRoomAttributesUseCase(roomRepository)
 const triggerRoom = new TriggerRoomUseCase(roomRepository, setDevicesPower)
 
+// signing out also forgets the user's networks
+const logout = { execute: () => { networkRepository.reset(); logoutSession.execute() } }
+
 export const container = {
   // auth
   demoAccount: defaultServer ? undefined : DEMO_ACCOUNT, // shown while the default server is selected
@@ -80,7 +109,7 @@ export const container = {
   removeServer: new RemoveServerUseCase(serverRepository),
   login: new LoginUseCase(authRepository),
   // signing out also forgets the chosen network
-  logout: { execute: () => { leaveActiveNetwork.execute(); logoutSession.execute() } },
+  logout,
   getSession: new GetSessionUseCase(authRepository),
   // devices
   loadDevices,

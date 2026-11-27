@@ -4,7 +4,7 @@ import type { NetworkRepository } from '../domain/repositories/network-repositor
 import type { NetworkListDTO } from './network-dto'
 import type { NetworkApi } from './sources/network-api'
 
-const EMPTY: NetworkList = { joined: [], nearby: [], serverOnline: true, loaded: false }
+const EMPTY: NetworkList = { joined: [], nearby: [], serverOnline: true, readOnly: false, loaded: false }
 
 function toDomain(dto: NetworkListDTO, modeOf: (id: string) => AccessMode): Pick<NetworkList, 'joined' | 'nearby'> {
   return {
@@ -29,6 +29,8 @@ export class CachedNetworkRepository implements NetworkRepository {
   private list = new InMemoryStore<NetworkList>(EMPTY)
   private active = new InMemoryStore<ActiveNetwork | undefined>(undefined)
 
+  private generation = 0 // an answer that arrives after reset() belongs to the previous user
+
   constructor(private api: NetworkApi) {}
 
   getList = () => this.list.get()
@@ -43,22 +45,34 @@ export class CachedNetworkRepository implements NetworkRepository {
 
   /** Publishes the names first ("Checking..."), then how each joined network can be reached. */
   async refresh() {
+    const generation = this.generation
+    const readOnly = this.api.readOnly?.() ?? false
     let dto: NetworkListDTO
     try {
       dto = await this.api.fetchNetworks()
     } catch (e) {
+      if (generation !== this.generation) return
       this.publish({ ...this.getList(), serverOnline: false, loaded: true })
       throw e
     }
+    if (generation !== this.generation) return
     const known = new Map(this.getList().joined.map(n => [n.id, n.mode]))
-    this.publish({ ...toDomain(dto, id => known.get(id) ?? 'unknown'), serverOnline: true, loaded: true })
+    this.publish({ ...toDomain(dto, id => known.get(id) ?? 'unknown'), serverOnline: true, readOnly, loaded: true })
 
     const modes = new Map(await Promise.all(dto.joined.map(async n =>
       [n.network_id, await this.api.checkAccess(n.network_id).catch(() => 'troubleshoot' as const)] as const)))
-    this.publish({ ...toDomain(dto, id => modes.get(id) ?? 'unknown'), serverOnline: true, loaded: true })
+    if (generation !== this.generation) return
+    this.publish({ ...toDomain(dto, id => modes.get(id) ?? 'unknown'), serverOnline: true, readOnly, loaded: true })
   }
 
   checkAccess = (id: string) => this.api.checkAccess(id)
+
+  /** Forgets everything about the signed-in user. */
+  reset() {
+    this.generation += 1
+    this.list.set(EMPTY)
+    this.active.set(undefined)
+  }
 
   async requestToJoin(id: string) {
     await this.api.requestToJoin(id)

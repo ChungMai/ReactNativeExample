@@ -30,6 +30,7 @@ export default function NetworkListScreen() {
         ) : (
           <ScrollView contentContainerStyle={styles.content}>
             <Text role="heading" style={styles.title}>Choose the network you want to use.</Text>
+            {vm.loadError ? <Text selectable style={styles.empty}>{vm.loadError}</Text> : null}
             {vm.empty ? <Text style={styles.empty}>No networks found.</Text> : null}
 
             {vm.joined.length > 0 ? <Text role="heading" style={styles.section}>Joined Networks</Text> : null}
@@ -48,15 +49,17 @@ export default function NetworkListScreen() {
                       : <Text style={styles.mode}>{network.modeLabel}</Text>}
                     <Ionicons name="chevron-forward" size={20} color={colors.primary} />
                   </Pressable>
-                  <Pressable
-                    onPress={network.onToggleActions}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Actions for ${network.name}`}
-                    accessibilityState={{ expanded: network.expanded }}
-                    style={styles.more}
-                  >
-                    <Ionicons name="ellipsis-vertical" size={18} color={colors.muted} />
-                  </Pressable>
+                  {network.actions.length > 0 ? (
+                    <Pressable
+                      onPress={network.onToggleActions}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Actions for ${network.name}`}
+                      accessibilityState={{ expanded: network.expanded }}
+                      style={styles.more}
+                    >
+                      <Ionicons name="ellipsis-vertical" size={18} color={colors.muted} />
+                    </Pressable>
+                  ) : null}
                 </View>
                 {network.expanded ? (
                   <View style={styles.actions}>
@@ -90,14 +93,16 @@ export default function NetworkListScreen() {
           </ScrollView>
         )}
 
-        <Pressable
-          onPress={vm.createNetwork}
-          accessibilityRole="button"
-          accessibilityLabel="Create a new network"
-          style={[styles.create, !vm.serverOnline && { backgroundColor: '#BDBDBD' }]}
-        >
-          <Text style={styles.createText}>Create a new network</Text>
-        </Pressable>
+        {vm.readOnly ? null : (
+          <Pressable
+            onPress={vm.createNetwork}
+            accessibilityRole="button"
+            accessibilityLabel="Create a new network"
+            style={[styles.create, !vm.serverOnline && { backgroundColor: '#BDBDBD' }]}
+          >
+            <Text style={styles.createText}>Create a new network</Text>
+          </Pressable>
+        )}
       </View>
       <DialogView dialog={vm.dialog} input={vm.input} onType={vm.type} onClose={vm.closeDialog} />
     </SafeAreaView>

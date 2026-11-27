@@ -13,8 +13,9 @@ const CONFIG = { details: { cognito: { cognito: POOL } } }
 const reply = (body: unknown, status = 200) => ({ ok: status < 300, status, json: async () => body }) as Response
 const server = (config: unknown = CONFIG) => jest.fn(async () => reply(config))
 const PASSWORD = 'made-up-password'
+const TOKENS = { username: 'u', accessToken: 'a', accessExpiresAt: 1, refreshToken: 'r' }
 
-function api(authenticate: () => Promise<'ok' | 'challenge'>, request = server()) {
+function api(authenticate: () => Promise<any>, request = server()) {
   return new CognitoAuthApi('https://auth.example.test/', request, authenticate)
 }
 const failing = (code: string, message = '') => api(async () => { throw { code, message } })
@@ -22,7 +23,7 @@ const failing = (code: string, message = '') => api(async () => { throw { code, 
 describe('CognitoAuthApi', () => {
   it('reads the pool from the server once and passes it to the sign-in', async () => {
     const request = server()
-    const authenticate = jest.fn(async () => 'ok' as const)
+    const authenticate = jest.fn(async () => TOKENS)
     const auth = new CognitoAuthApi('https://auth.example.test/', request, authenticate)
     await expect(auth.signIn('someone@example.com', PASSWORD)).resolves.toBe(true)
     await auth.signIn('someone@example.com', PASSWORD)

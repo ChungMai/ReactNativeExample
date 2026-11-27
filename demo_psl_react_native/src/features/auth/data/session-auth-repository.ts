@@ -5,7 +5,8 @@ import type { AuthApi } from './sources/auth-api'
 import type { SessionStore } from './sources/session-store'
 
 export class SessionAuthRepository implements AuthRepository {
-  constructor(private api: AuthApi, private store: SessionStore) {}
+  /** `forget` drops whatever else belongs to the signed-in user, e.g. tokens. */
+  constructor(private api: AuthApi, private store: SessionStore, private forget: () => void = () => {}) {}
 
   getSession = () => this.store.get().session
   getLastEmail = () => this.store.get().lastEmail
@@ -18,6 +19,7 @@ export class SessionAuthRepository implements AuthRepository {
     this.store.set({ session, lastEmail: session.email })
   }
   clearSession() {
+    this.forget()
     this.store.set({ lastEmail: this.getLastEmail() })
   }
 }

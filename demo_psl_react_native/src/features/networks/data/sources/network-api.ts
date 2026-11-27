@@ -3,6 +3,8 @@ import type { AccessDTO, NetworkListDTO } from '../network-dto'
 import { ACCESS_SEED, NETWORK_SEED } from './network-seed'
 
 export interface NetworkApi {
+  /** Whether the list can only be read right now. */
+  readOnly?(): boolean
   fetchNetworks(): Promise<NetworkListDTO>
   checkAccess(id: string): Promise<AccessDTO>
   requestToJoin(id: string): Promise<void>

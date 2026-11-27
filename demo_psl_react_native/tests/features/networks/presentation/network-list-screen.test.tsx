@@ -44,6 +44,14 @@ describe('NetworkListScreen', () => {
     expect(screen.getByRole('button', { name: 'Neighbour, PENDING' })).toBeTruthy()
   })
 
+  it('offers no way to change a read-only list', async () => {
+    Object.assign(env.networkApi, { readOnly: () => true })
+    await render(<NetworkListScreen />)
+    expect(await screen.findByRole('button', { name: 'My Home, Local Access' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Actions for My Home' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Create a new network' })).toBeNull()
+  })
+
   it('deletes a network after the name is typed', async () => {
     await render(<NetworkListScreen />)
     await press('Actions for My Home')

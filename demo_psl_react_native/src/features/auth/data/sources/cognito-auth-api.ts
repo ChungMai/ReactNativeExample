@@ -5,6 +5,7 @@ import { AuthError } from '../../domain/auth-error'
 import type { AuthApi } from './auth-api'
 import { fetchCognitoPool } from './auth-server'
 import { srpSignIn, type CognitoPool } from './cognito-srp'
+import type { TokenSet } from './token-vault'
 
 type Fetch = typeof fetch
 
@@ -17,6 +18,7 @@ export class CognitoAuthApi implements AuthApi {
     private serverUrl: string,
     private request: Fetch = (...args) => fetch(...args),
     private authenticate = srpSignIn,
+    private onTokens: (tokens: TokenSet) => void = () => {},
   ) {}
 
   async signIn(email: string, password: string): Promise<boolean> {
@@ -24,6 +26,7 @@ export class CognitoAuthApi implements AuthApi {
     try {
       const result = await withTimeout(this.authenticate(pool, email, password))
       if (result === 'challenge') throw new AuthError('challengeRequired') // new password, MFA, ...
+      this.onTokens({ ...result, ...pool, server: this.serverUrl.trim().replace(/\/+$/, '') })
       return true
     } catch (e) {
       if (e instanceof AuthError || e instanceof AppError) throw e

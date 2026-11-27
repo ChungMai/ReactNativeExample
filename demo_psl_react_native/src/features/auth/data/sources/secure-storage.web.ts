@@ -9,3 +9,11 @@ const storageAt = (key: string): TextStorage => ({
 
 export const secureStorage = storageAt('auth.session')
 export const serverStorage = storageAt('auth.server')
+
+// Tokens must not sit in localStorage: on web they only live until the page is reloaded.
+function memory(): TextStorage {
+  let value: string | null = null
+  return { read: () => value, write: next => { value = next } }
+}
+export const tokenOwnerStorage = memory()
+export const refreshTokenStorage = memory()

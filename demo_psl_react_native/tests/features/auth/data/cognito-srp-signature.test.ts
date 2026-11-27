@@ -24,7 +24,7 @@ describe('SRP signature', () => {
   it.each(['Plain-pass1', 'Sp$c!al@Chars#9', 'mật khẩu có dấu 1A'])('is accepted for the right password (%s)', async password => {
     serve(password)
     for (let round = 0; round < 1; round++) {
-      await expect(srpSignIn(pool, 'someone@example.com', password)).resolves.toBe('ok')
+      await expect(srpSignIn(pool, 'someone@example.com', password)).resolves.toMatchObject({ refreshToken: 'r' })
     }
   }, 60_000)
 
