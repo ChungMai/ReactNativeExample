@@ -11,6 +11,7 @@ import { GetSessionUseCase } from '@/features/auth/domain/use-cases/get-session'
 import { LoginUseCase } from '@/features/auth/domain/use-cases/login'
 import { LogoutUseCase } from '@/features/auth/domain/use-cases/logout'
 import { RestoreSessionUseCase } from '@/features/auth/domain/use-cases/restore-session'
+import { ServerDeviceList } from '@/features/devices/data/server-device-list'
 import { CachedDeviceRepository } from '@/features/devices/data/cached-device-repository'
 import { FakeDeviceApi } from '@/features/devices/data/sources/device-api'
 import { InMemoryDeviceDb } from '@/features/devices/data/sources/device-db'
@@ -32,6 +33,7 @@ import { LeaveActiveNetworkUseCase } from '@/features/networks/domain/use-cases/
 import { RefreshNetworksUseCase } from '@/features/networks/domain/use-cases/refresh-networks'
 import { RemoveNetworkUseCase } from '@/features/networks/domain/use-cases/remove-network'
 import { SelectNetworkUseCase } from '@/features/networks/domain/use-cases/select-network'
+import { ServerRoomList } from '@/features/rooms/data/server-room-list'
 import { CachedRoomRepository } from '@/features/rooms/data/cached-room-repository'
 import { FakeRoomApi } from '@/features/rooms/data/sources/room-api'
 import { InMemoryRoomDb } from '@/features/rooms/data/sources/room-db'
@@ -84,7 +86,10 @@ export function makeEnv(options: { apiError?: AppError } = {}) {
     getSession: new GetSessionUseCase(authRepository),
     restoreSession: new RestoreSessionUseCase(authRepository),
     deviceRepository,
+    serverDevices: new ServerDeviceList({ source: () => 'demo', fetchDevices: async () => [] }, () => false),
     roomRepository,
+    serverRooms: new ServerRoomList(
+      { source: () => 'demo', fetchRooms: async () => [], fetchMembers: async () => ({ devices: [], presets: [] }) }, () => false),
     homeRepository,
     homeApi,
     loadDevices,

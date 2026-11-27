@@ -1,2 +1,5 @@
 // WEB entry: which UI the devices feature uses in the browser.
-export { default as DevicesScreen } from './web/screens/devices-screen'
+import WebDevicesScreen from './web/screens/devices-screen'
+import { withServerDevices } from './shared/screens/devices-entry'
+
+export const DevicesScreen = withServerDevices(WebDevicesScreen)

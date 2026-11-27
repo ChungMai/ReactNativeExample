@@ -22,9 +22,17 @@ export class CloudNetworkApi implements NetworkApi {
 
   readOnly = () => true
 
+  private hubs = new Map<string, { hub: string; name: string }>()
+  /** What the server needs to address a network of the last fetched list. */
+  hubOf = (id: string) => this.hubs.get(id)
+
   async fetchNetworks(): Promise<NetworkListDTO> {
     const body = await this.get('/app/networks')
     if (!Array.isArray(body)) throw new AppError('unknown', 'GET /app/networks: the answer is not a list')
+    this.hubs = new Map(body.flatMap((item: any) => toJoined(item).map(n => {
+      const hub = item.network.primaryHub
+      return [n.network_id, { hub: typeof hub === 'string' ? hub : '', name: n.network_name }] as const
+    })))
     return { joined: body.flatMap(toJoined), nearby: [] } // "nearby" needs local discovery
   }
 

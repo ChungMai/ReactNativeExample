@@ -3,12 +3,13 @@ const { createDevProxy } = jest.requireActual('../../../dev-proxy')
 
 const TARGET = 'https://dev.example.test/app/networks'
 
-async function call(over: { url?: string; method?: string; address?: string; headers?: Record<string, string> } = {}, answer: any = {}) {
+async function call(over: { body?: string; url?: string; method?: string; address?: string; headers?: Record<string, string> } = {}, answer: any = {}) {
   const request = jest.fn(async () => ({
     status: 200, headers: { get: () => 'application/json' }, text: async () => '[]', ...answer,
   }))
   const result = { status: 0, body: '', passedOn: false, request }
   const req = {
+    async *[Symbol.asyncIterator]() { if (over.body) yield over.body },
     url: over.url ?? `/__dev-proxy?url=${encodeURIComponent(TARGET)}`,
     method: over.method ?? 'GET',
     socket: { remoteAddress: over.address ?? '127.0.0.1' },
@@ -47,6 +48,40 @@ describe('dev proxy', () => {
     ['a rebound host name', { headers: { host: 'attacker.test' } }],
   ])('refuses %s', async (_name, over) => {
     const result = await call(over)
+    expect(result.status).toBe(403)
+    expect(result.request).not.toHaveBeenCalled()
+  })
+
+  const OBJECTS = 'https://dev.example.test/api/bridge/hub-1/objects'
+
+  it('forwards the POST that reads the Home objects', async () => {
+    const result = await call({ ...to(OBJECTS), method: 'POST', body: '{"0010":8}' })
+    expect(result.status).toBe(200)
+    expect(result.request).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ method: 'POST', body: '{"0010":8}' }))
+  })
+
+  const BRIDGE = 'https://dev.example.test/api/bridge/hub-1'
+
+  it('forwards the reads of the rooms, and nothing else about a group', async () => {
+    expect((await call(to(`${BRIDGE}/groups/0`))).status).toBe(200)
+    expect((await call(to(`${BRIDGE}/groups/12/memberof`))).status).toBe(200)
+    expect((await call(to(`${BRIDGE}/groups/12`))).status).toBe(403)
+    expect((await call({ ...to(`${BRIDGE}/groups/12`), method: 'POST', body: '{"0010":0}' })).status).toBe(403)
+  })
+
+  const DEVICES = 'https://dev.example.test/api/bridge/hub-1/accessories'
+
+  it('forwards the POST that reads the devices, and no other operation there', async () => {
+    expect((await call({ ...to(DEVICES), method: 'POST', body: '{"0010":23}' })).status).toBe(200)
+    expect((await call({ ...to(DEVICES), method: 'POST', body: '{"0010":8}' })).status).toBe(403)
+  })
+
+  it.each([
+    ['another operation', OBJECTS, '{"0010":0}'],
+    ['a body that is not JSON', OBJECTS, 'on'],
+    ['a trigger path', 'https://dev.example.test/api/bridge/hub-1/zones/4', '{"0010":8}'],
+  ])('refuses a POST with %s', async (_name, url, body) => {
+    const result = await call({ ...to(url), method: 'POST', body })
     expect(result.status).toBe(403)
     expect(result.request).not.toHaveBeenCalled()
   })

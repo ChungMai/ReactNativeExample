@@ -8,8 +8,9 @@ import { RoomCard as MobileRoomCard } from './mobile/components/room-card'
 import MobileRoomsScreen from './mobile/screens/rooms-screen'
 import { RoomCard as DesktopRoomCard } from './desktop/components/room-card'
 import DesktopRoomsScreen from './desktop/screens/rooms-screen'
+import { withServerRooms } from './shared/screens/rooms-entry'
 
-export const RoomsScreen = adaptive(MobileRoomsScreen, DesktopRoomsScreen)
+export const RoomsScreen = withServerRooms(adaptive(MobileRoomsScreen, DesktopRoomsScreen))
 export const RoomCard = adaptive(MobileRoomCard, DesktopRoomCard)
 // One UI for every size (no mobile/, desktop/ or web/ version yet)
 export { default as RoomDetailScreen } from './shared/screens/room-detail-screen'

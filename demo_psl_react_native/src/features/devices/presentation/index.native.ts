@@ -2,5 +2,6 @@
 import { adaptive } from '../../../shared/components/adaptive'
 import MobileDevicesScreen from './mobile/screens/devices-screen'
 import DesktopDevicesScreen from './desktop/screens/devices-screen'
+import { withServerDevices } from './shared/screens/devices-entry'
 
-export const DevicesScreen = adaptive(MobileDevicesScreen, DesktopDevicesScreen)
+export const DevicesScreen = withServerDevices(adaptive(MobileDevicesScreen, DesktopDevicesScreen))

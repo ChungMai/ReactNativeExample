@@ -20,7 +20,7 @@ export default function RoomDetailScreen() {
   const [tab, setTab] = useState<Tab>('Manage')
   const [menuOpen, setMenuOpen] = useState(false)
 
-  if (!vm.detail) return <Text style={{ padding: 16 }}>Room not found</Text>
+  if (!vm.detail) return <Text style={{ padding: 16 }}>{vm.missingText}</Text>
   const room = vm.detail
 
   return (
@@ -29,7 +29,7 @@ export default function RoomDetailScreen() {
         <Stack.Screen
           options={{
             title: room.title,
-            headerRight: () => (
+            headerRight: room.readOnly ? undefined : () => (
               <IconButton icon="ellipsis-vertical" label="Room options" onPress={() => setMenuOpen(o => !o)} />
             ),
           }}
@@ -65,27 +65,34 @@ export default function RoomDetailScreen() {
                 disabled={!room.canSwitch}
                 right={<Switch value={room.isOn} disabled={!room.canSwitch} onValueChange={vm.setPower} />}
               />
-              <View style={{ height: 24 }} />
-              <Pressable onPress={vm.toggleFavourite}>
-                <Row
-                  label={room.favouriteLabel}
-                  right={<Ionicons name={room.isFavourite ? 'heart' : 'heart-outline'} size={22} color={colors.primary} />}
-                />
-              </Pressable>
+              {room.readOnly ? <Text style={styles.empty}>This is a real room, read only.</Text> : (
+                <>
+                  <View style={{ height: 24 }} />
+                  <Pressable onPress={vm.toggleFavourite}>
+                    <Row
+                      label={room.favouriteLabel}
+                      right={<Ionicons name={room.isFavourite ? 'heart' : 'heart-outline'} size={22} color={colors.primary} />}
+                    />
+                  </Pressable>
+                </>
+              )}
             </View>
           )}
 
           {tab === 'Devices' && (
             <View style={{ gap: StyleSheet.hairlineWidth, marginTop: 8 }}>
-              {room.devices.length === 0 && <Text style={styles.empty}>No devices in this room yet</Text>}
+              {room.devices.length === 0 && <Text style={styles.empty}>{room.devicesMessage ?? 'No devices in this room yet'}</Text>}
               {room.devices.map(d => (
                 <Row key={d.id} label={d.title}
-                  right={<Switch value={d.isOn} onValueChange={() => vm.toggleDevice(d.id)} />} />
+                  right={d.note ? <Text style={{ color: colors.muted }}>{d.note}</Text> : d.hasSwitch === false ? null
+                    : <Switch value={d.isOn} disabled={room.readOnly} onValueChange={() => vm.toggleDevice(d.id)} />} />
               ))}
             </View>
           )}
 
-          {tab === 'Presets' && <Text style={styles.empty}>No presets yet</Text>}
+          {tab === 'Presets' && (room.presets?.length
+            ? <View style={{ gap: StyleSheet.hairlineWidth, marginTop: 8 }}>{room.presets.map(preset => <Row key={preset.id} label={preset.name} />)}</View>
+            : <Text style={styles.empty}>{room.devicesMessage ?? 'No presets yet'}</Text>)}
         </ScrollView>
       </View>
     </ReadableWidth>

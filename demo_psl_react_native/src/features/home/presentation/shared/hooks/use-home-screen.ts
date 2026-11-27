@@ -14,6 +14,7 @@ export const POLL_INTERVAL_MS = 10_000
 export const SERVER_ONLINE_MESSAGE = 'The server is online and connected.'
 export const SERVER_OFFLINE_MESSAGE =
   'The server may not exist or it is unavailable at this time. Please check the server / network connection, and try again.'
+export const READ_ONLY_MESSAGE = 'This is real data from the server. Controlling it is not part of this demo yet.'
 const NOT_PORTED = (what: string) => `${what} is not part of this demo yet.`
 
 export interface MenuAction {
@@ -24,7 +25,7 @@ export interface MenuAction {
 
 export function useHomeScreen() {
   const { getHome, getAllRooms, getAllDevices, refreshHome, activateHomeItem, getNetworks, leaveActiveNetwork } = container
-  const { snapshot, serverOnline } = useSyncExternalStore(getHome.subscribe, getHome.execute)
+  const { snapshot, serverOnline, readOnly = false } = useSyncExternalStore(getHome.subscribe, getHome.execute)
   const rooms = useSyncExternalStore(getAllRooms.subscribe, getAllRooms.execute)
   const devices = useSyncExternalStore(getAllDevices.subscribe, getAllDevices.execute)
 
@@ -83,7 +84,8 @@ export function useHomeScreen() {
   const notPorted = (what: string) => choose(() => setNotice(NOT_PORTED(what)))
 
   const addDevice = notPorted('Add Device')
-  const addFavourite = go(routes.addFavourites)
+  // the pickers and detail pages only know the demo objects
+  const addFavourite = readOnly ? notPorted('Editing favourites') : go(routes.addFavourites)
 
   const addActions: MenuAction[] = [
     { label: 'Add Device', onPress: addDevice },
@@ -91,7 +93,7 @@ export function useHomeScreen() {
     { label: 'Create Group', onPress: go('/groups' as Href) },
     { label: 'Create Room', onPress: go(routes.newRoom) },
     { label: 'Create Zone', onPress: notPorted('Create Zone') },
-    { label: 'Add Favourite', disabled: !serverOnline, onPress: addFavourite },
+    { label: 'Add Favourite', disabled: !serverOnline || readOnly, onPress: addFavourite },
   ]
   const moreActions: MenuAction[] = [
     { label: 'Profile', onPress: go('/more' as Href) },
@@ -112,7 +114,7 @@ export function useHomeScreen() {
     emptyTile: (overview.layout === 'custom' ? gridCards.length === 0 : !overview.hasFavourites)
       ? {
           title: overview.hasDevices ? 'Add Favourite' : 'Add Device',
-          disabled: !serverOnline,
+          disabled: !serverOnline || readOnly,
           onPress: overview.hasDevices ? addFavourite : addDevice,
         }
       : null,
@@ -148,6 +150,7 @@ export function useHomeScreen() {
     /** Tap: switch or trigger the object. */
     activate: (card: CardDisplay) => {
       closeOverlays()
+      if (readOnly) return setNotice(READ_ONLY_MESSAGE)
       try {
         activateHomeItem.execute(card)
         setNotice(card.kind === 'scene' || card.kind === 'preset' ? `${card.title} activated` : null)
@@ -158,6 +161,7 @@ export function useHomeScreen() {
 
     /** Long press (or the details button): open the object's page. */
     openDetail: (card: CardDisplay) => {
+      if (readOnly) return notPorted(`The ${card.kind} page`)()
       if (card.kind === 'room') return go(routes.room(card.id))()
       if (card.kind === 'device') return go('/devices' as Href)()
       notPorted(`The ${card.kind} page`)()

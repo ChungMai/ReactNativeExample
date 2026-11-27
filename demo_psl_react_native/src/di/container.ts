@@ -19,6 +19,8 @@ import { LoginUseCase } from '../features/auth/domain/use-cases/login'
 import { LogoutUseCase } from '../features/auth/domain/use-cases/logout'
 import { RestoreSessionUseCase } from '../features/auth/domain/use-cases/restore-session'
 import { serverFetch } from '../shared/data/server-fetch'
+import { ServerDeviceList } from '../features/devices/data/server-device-list'
+import { CloudDeviceApi } from '../features/devices/data/sources/cloud-device-api'
 import { CachedDeviceRepository } from '../features/devices/data/cached-device-repository'
 import { FakeDeviceApi } from '../features/devices/data/sources/device-api'
 import { InMemoryDeviceDb } from '../features/devices/data/sources/device-db'
@@ -27,7 +29,9 @@ import { GetAllDevicesUseCase } from '../features/devices/domain/use-cases/get-a
 import { SetDevicesPowerUseCase } from '../features/devices/domain/use-cases/set-devices-power'
 import { ToggleDeviceUseCase } from '../features/devices/domain/use-cases/toggle-device'
 import { CachedHomeRepository } from '../features/home/data/cached-home-repository'
+import { CloudHomeApi } from '../features/home/data/sources/cloud-home-api'
 import { FakeHomeApi } from '../features/home/data/sources/home-api'
+import { SwitchingHomeApi } from '../features/home/data/sources/switching-home-api'
 import { ActivateHomeItemUseCase } from '../features/home/domain/use-cases/activate-home-item'
 import { GetHomeUseCase } from '../features/home/domain/use-cases/get-home'
 import { RefreshHomeUseCase } from '../features/home/domain/use-cases/refresh-home'
@@ -40,6 +44,8 @@ import { LeaveActiveNetworkUseCase } from '../features/networks/domain/use-cases
 import { RefreshNetworksUseCase } from '../features/networks/domain/use-cases/refresh-networks'
 import { RemoveNetworkUseCase } from '../features/networks/domain/use-cases/remove-network'
 import { SelectNetworkUseCase } from '../features/networks/domain/use-cases/select-network'
+import { ServerRoomList } from '../features/rooms/data/server-room-list'
+import { CloudRoomApi } from '../features/rooms/data/sources/cloud-room-api'
 import { CachedRoomRepository } from '../features/rooms/data/cached-room-repository'
 import { FakeRoomApi } from '../features/rooms/data/sources/room-api'
 import { InMemoryRoomDb } from '../features/rooms/data/sources/room-db'
@@ -82,14 +88,31 @@ const signOutIfExpired = (error: unknown) => {
   logout.execute()
   return true
 }
+const isRealAccount = () => credentials.server() !== undefined
+const cloudNetworks = new CloudNetworkApi(credentials, signOutIfExpired, serverFetch)
 const networkRepository: CachedNetworkRepository = new CachedNetworkRepository(new SwitchingNetworkApi(
-  () => credentials.server() !== undefined,
-  new CloudNetworkApi(credentials, signOutIfExpired, serverFetch),
+  isRealAccount,
+  cloudNetworks,
   new FakeNetworkApi(),
 ))
 const leaveActiveNetwork = new LeaveActiveNetworkUseCase(networkRepository)
 const logoutSession = new LogoutUseCase(authRepository)
-const homeRepository = new CachedHomeRepository(new FakeHomeApi())
+const chosenNetwork = () => {
+  const id = networkRepository.getActive()?.id
+  const found = id ? cloudNetworks.hubOf(id) : undefined
+  return id && found ? { id, ...found } : undefined
+}
+const homeRepository = new CachedHomeRepository(new SwitchingHomeApi(
+  isRealAccount,
+  new CloudHomeApi(credentials, chosenNetwork, signOutIfExpired, serverFetch),
+  new FakeHomeApi(),
+))
+
+const serverDevices = new ServerDeviceList(
+  new CloudDeviceApi(credentials, chosenNetwork, signOutIfExpired, serverFetch), isRealAccount)
+
+const serverRooms = new ServerRoomList(
+  new CloudRoomApi(credentials, chosenNetwork, signOutIfExpired, serverFetch), isRealAccount)
 
 const setDevicesPower = new SetDevicesPowerUseCase(deviceRepository)
 const toggleDevice = new ToggleDeviceUseCase(deviceRepository)
@@ -112,11 +135,13 @@ export const container = {
   logout,
   getSession: new GetSessionUseCase(authRepository),
   // devices
+  serverDevices,
   loadDevices,
   getAllDevices: new GetAllDevicesUseCase(deviceRepository),
   toggleDevice,
   setDevicesPower,
   // rooms
+  serverRooms,
   loadRooms,
   getAllRooms: new GetAllRoomsUseCase(roomRepository),
   getRoomDetailInfo: new GetRoomDetailInfoUseCase(roomRepository),

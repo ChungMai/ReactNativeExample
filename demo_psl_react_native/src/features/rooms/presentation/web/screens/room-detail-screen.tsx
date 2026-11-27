@@ -27,7 +27,7 @@ export default function RoomDetailScreen() {
     return (
       <View style={styles.page}>
         <Stack.Screen options={{ headerShown: false }} />
-        <Text style={styles.notFound}>Room not found</Text>
+        <Text style={styles.notFound}>{vm.missingText}</Text>
       </View>
     )
   }
@@ -47,7 +47,7 @@ export default function RoomDetailScreen() {
             <Text style={styles.crumb}>/</Text>
             <Text style={styles.crumbCurrent} numberOfLines={1}>{room.title}</Text>
           </View>
-          <View>
+          {room.readOnly ? null : <View>
             <SquareButton icon="ellipsis-vertical" label="More options" onPress={() => setMenuOpen(o => !o)} />
             {menuOpen && (
               <View style={styles.menu}>
@@ -61,7 +61,7 @@ export default function RoomDetailScreen() {
                 </Pressable>
               </View>
             )}
-          </View>
+          </View>}
         </View>
       </View>
 
@@ -80,7 +80,7 @@ export default function RoomDetailScreen() {
                 </Text>
               </View>
               <Text role="heading" aria-level={1} style={styles.heroTitle}>{room.title}</Text>
-              <Text style={styles.heroSub}>Manage power, devices and presets for this room.</Text>
+              <Text style={styles.heroSub}>{room.readOnly ? 'A real room, read only.' : 'Manage power, devices and presets for this room.'}</Text>
             </View>
           </View>
 
@@ -126,7 +126,7 @@ export default function RoomDetailScreen() {
                 </View>
               </Card>
 
-              <Card>
+              {room.readOnly ? null : <Card>
                 <Text role="heading" aria-level={2} style={[styles.cardTitle, { lineHeight: 44 }]}>Quick access</Text>
                 <Pressable onPress={vm.toggleFavourite} accessibilityRole="button" style={styles.row}>
                   <View style={[styles.rowIcon, { backgroundColor: '#FDECEC' }]}>
@@ -140,13 +140,14 @@ export default function RoomDetailScreen() {
                   </View>
                   <Ionicons name="chevron-forward" size={20} color={MUTED} />
                 </Pressable>
-              </Card>
+              </Card>}
             </View>
           )}
 
           {tab === 'Devices' && (
             room.devices.length === 0 ? (
-              <EmptyCard title="No devices in this room yet" text="Add lights, plugs or sensors to control them here." />
+              <EmptyCard title={room.devicesMessage ?? 'No devices in this room yet'}
+                text={room.readOnly ? '' : 'Add lights, plugs or sensors to control them here.'} />
             ) : (
               <Card>
                 {room.devices.map(d => (
@@ -155,11 +156,14 @@ export default function RoomDetailScreen() {
                       <Ionicons name="bulb-outline" size={24} color={d.isOn ? ACCENT : MUTED} />
                     </View>
                     <View style={styles.rowText}><Text style={styles.rowTitle}>{d.title}</Text></View>
-                    <ToggleSwitch
-                      value={d.isOn}
-                      onValueChange={() => vm.toggleDevice(d.id)}
-                      label={d.title}
-                      />
+                    {d.note ? <Text style={styles.rowSub}>{d.note}</Text> : d.hasSwitch === false ? null : (
+                      <ToggleSwitch
+                        value={d.isOn}
+                        disabled={room.readOnly}
+                        onValueChange={() => vm.toggleDevice(d.id)}
+                        label={d.title}
+                        />
+                    )}
                   </View>
                 ))}
               </Card>
@@ -167,7 +171,14 @@ export default function RoomDetailScreen() {
           )}
 
           {tab === 'Presets' && (
-            <EmptyCard title="No presets yet" text="Save a combination of device settings to apply it in one tap." />
+            room.presets?.length ? (
+              <Card>
+                {room.presets.map(preset => <Text key={preset.id} style={styles.rowTitle}>{preset.name}</Text>)}
+              </Card>
+            ) : (
+              <EmptyCard title={room.devicesMessage ?? 'No presets yet'}
+                text={room.readOnly ? '' : 'Save a combination of device settings to apply it in one tap.'} />
+            )
           )}
         </View>
       </ScrollView>

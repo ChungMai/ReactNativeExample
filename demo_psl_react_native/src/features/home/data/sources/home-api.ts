@@ -4,6 +4,10 @@ import { HOME_SEED } from '../home-seed'
 
 export interface HomeApi {
   fetchHome(): Promise<HomeDTO>
+  /** Whose data this is. It changes with the account or network; undefined: the built-in demo home. */
+  source?(): string | undefined
+  /** true when nothing can be switched or edited. */
+  readOnly?(): boolean
 }
 
 /** Stub for the hub. Replace the body with a real request when an API exists. */

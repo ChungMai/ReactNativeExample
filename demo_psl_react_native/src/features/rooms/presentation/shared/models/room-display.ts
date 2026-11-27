@@ -20,5 +20,15 @@ export interface RoomDetailDisplay {
   switchLabel: string
   isFavourite: boolean
   favouriteLabel: string
-  devices: DeviceDisplay[]
+  devices: (DeviceDisplay & {
+    /** Shown instead of the switch, e.g. the device cannot be reached. */
+    note?: string
+    /** false: has no power state, so there is no switch. */
+    hasSwitch?: boolean
+  })[]
+  /** true for a room of the real server: nothing can be switched or edited. */
+  readOnly?: boolean
+  presets?: { id: string; name: string }[]
+  /** Replaces the empty texts while the devices load or after they failed to. */
+  devicesMessage?: string
 }

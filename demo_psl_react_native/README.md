@@ -41,7 +41,7 @@ Not ported: biometric login, registration, forgot password, email verification, 
 
 **Choose another server?** on the login screen ports the Swift `SelectServerViewController`: Default Server, servers used before (removable) or a custom address. A server is only selected after it returned a sign-in configuration; the choice is remembered. Only `https` and Cognito servers are supported. `Default Server` is `EXPO_PUBLIC_AUTH_SERVER_URL`, or the demo account when that is not set.
 
-**Web and CORS.** The real server sends no CORS headers, so in development the web app reads the sign-in configuration and the network list through the Expo dev server (`dev-proxy.js`). Set `DEV_PROXY_ALLOWED_HOSTS` in `.env.local` (see `.env.example`) and restart `npx expo start`. The proxy only serves a browser on the same machine, only those two paths, only the listed https hosts. A deployed web build does not use it and needs CORS on the server.
+**Web and CORS.** The real server sends no CORS headers, so in development the web app reads the sign-in configuration, the network list, Home, Devices and Rooms through the Expo dev server (`dev-proxy.js`). Set `DEV_PROXY_ALLOWED_HOSTS` in `.env.local` (see `.env.example`) and restart `npx expo start`. The proxy only serves a browser on the same machine, only those read requests, only the listed https hosts. A deployed web build does not use it and needs CORS on the server.
 
 ## Network list
 
@@ -64,6 +64,12 @@ A port of the Home page of the Swift app (`HomeMainViewController` and its prese
 | `HomeMainViewPresenter` | `presentation/shared/hooks/use-home-screen.ts` |
 
 Not ported: quick-control panels, Add Device / Add Hub / Create Zone, network list, the "Personalise your home screen" editor, background images, the shrinking header on scroll. The hub is a stub (`FakeHomeApi`); to see the offline state, build it with an `AppError` in `di/container.ts`.
+
+**Real Home.** After a real sign-in Home reads the favourites and the layout from `GET <server>/app/networks/users/` and the objects with their on/off state from `POST <server>/api/bridge/<primary hub>/objects` (remote access only). It is **read only**: cards cannot be switched, favourites cannot be edited, and detail pages are not available. 
+
+**Real Devices.** After a real sign-in the Devices tab lists the network's devices from `POST <server>/api/bridge/<primary hub>/accessories` (64, then 128 at a time) in collapsible categories, with search and A-Z/Z-A. It is **read only**. Groups and the demo account still use demo data.
+
+**Real Rooms.** The Rooms tab lists the rooms from `GET <server>/api/bridge/<primary hub>/groups/0`; opening one shows the same room detail screen as the demo, with its devices and presets from `.../groups/<id>/memberof`. It is **read only**, with bundled cover images in place of the room's own picture, and without favourites.
 
 ## Suggested Demo Flow (about 4 minutes)
 

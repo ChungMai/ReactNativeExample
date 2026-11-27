@@ -32,7 +32,8 @@ export function sortItems(items: HomeItem[], positions: HomeCustomization['itemP
 function favouritesOf(kind: FavouriteKind, { snapshot, rooms, devices }: HomeContent): HomeItem[] {
   // A favourite id that no longer exists (deleted object) is skipped.
   const pick = <T extends { id: string }>(ids: string[], all: T[]) => all.filter(x => ids.includes(x.id))
-  const { favourites } = snapshot
+  const { favourites, live } = snapshot
+  if (live) devices = live.devices
 
   switch (kind) {
     case 'device':
@@ -40,11 +41,12 @@ function favouritesOf(kind: FavouriteKind, { snapshot, rooms, devices }: HomeCon
         .filter(id => devices[id])
         .map(id => ({ kind, id, name: devices[id].name, isOn: devices[id].on, deviceKind: devices[id].kind }))
     case 'room':
+      if (live) return live.rooms.map(r => ({ kind, id: r.id, name: r.name, isOn: r.isOn }))
       return rooms.filter(r => r.favourite).map(r => ({ kind, id: r.id, name: r.name, isOn: anyOn(r.deviceIds, devices) }))
     case 'group':
     case 'zone':
       return pick(favourites[kind], kind === 'group' ? snapshot.groups : snapshot.zones)
-        .map(c => ({ kind, id: c.id, name: c.name, isOn: anyOn(c.deviceIds, devices) }))
+        .map(c => ({ kind, id: c.id, name: c.name, isOn: c.isOn ?? anyOn(c.deviceIds, devices) }))
     case 'scene':
     case 'preset':
       return pick(favourites[kind], kind === 'scene' ? snapshot.scenes : snapshot.presets)
@@ -53,7 +55,7 @@ function favouritesOf(kind: FavouriteKind, { snapshot, rooms, devices }: HomeCon
 }
 
 function summaryOf({ snapshot, rooms, devices }: HomeContent): SummaryCount[] {
-  const counts: Record<SummaryKind, number> = {
+  const counts: Record<SummaryKind, number> = snapshot.live?.onCounts ?? {
     device: Object.values(devices).filter(d => d.on).length,
     room: rooms.filter(r => anyOn(r.deviceIds, devices)).length,
     group: snapshot.groups.filter(g => anyOn(g.deviceIds, devices)).length,
@@ -88,6 +90,6 @@ export function buildHomeOverview(content: HomeContent): HomeOverview {
     sections: all.filter(s => !settings.find(x => x.kind === s.kind)?.hidden).sort((a, b) => rank(a.kind) - rank(b.kind)),
     gridItems: sortItems(all.flatMap(s => s.items), customization?.itemPositions),
     hasFavourites: all.length > 0, // hidden sections still count as favourites
-    hasDevices: Object.keys(content.devices).length > 0,
+    hasDevices: content.snapshot.live !== undefined || Object.keys(content.devices).length > 0,
   }
 }
