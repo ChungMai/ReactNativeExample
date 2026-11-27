@@ -10,15 +10,13 @@ export interface RoomSource {
   fetchMembers(roomId: string): Promise<RoomMembers>
 }
 
-/** The rooms of the real network. Kept apart from the demo rooms, which can be edited. */
+/** The rooms of the chosen network. */
 export class ServerRoomList {
   private store = new InMemoryStore<RoomList>(EMPTY)
   private source?: string
 
-  constructor(private api: RoomSource, private isReal: () => boolean) {}
+  constructor(private api: RoomSource) {}
 
-  /** true after a real sign-in: the screen shows this list instead of the demo rooms. */
-  isActive = () => this.isReal()
   get = () => this.store.get()
   subscribe = (listener: () => void) => this.store.subscribe(listener)
 

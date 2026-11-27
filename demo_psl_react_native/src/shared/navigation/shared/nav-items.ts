@@ -19,7 +19,7 @@ export type NavItem = {
 }
 
 export const navItems: NavItem[] = [
-  { name: 'home', title: 'Home', icon: 'home', href: '/home' as Href, match: ['/home', '/favourites'], header: false },
+  { name: 'home', title: 'Home', icon: 'home', href: '/home' as Href, match: ['/home'], header: false },
   { name: 'devices', title: 'Devices', icon: 'bulb', href: '/devices' as Href, match: ['/devices'], header: true },
   { name: 'rooms', title: 'Rooms', icon: 'cube', href: '/rooms' as Href, match: ['/rooms', '/room'], header: false },
   { name: 'groups', title: 'Groups', icon: 'aperture', href: '/groups' as Href, match: ['/groups'], header: true },

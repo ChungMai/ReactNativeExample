@@ -1,32 +1,46 @@
-import { router } from 'expo-router'
-import { useMemo, useSyncExternalStore } from 'react'
-import { routes } from '../../../../../shared/routes'
+// View model of the room detail screens. Swift: RoomDetailViewModel.
+import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { container } from '../../../../../di/container'
-import { toRoomWithDevices } from '../../../domain/room-with-power'
-import { toRoomDetailDisplay } from '../mappers/room-display-mapper'
+import { COVERS } from '../assets/covers'
 import type { RoomDetailDisplay } from '../models/room-display'
-import { useServerRoomDetail } from './use-server-room-detail'
 
 export function useRoomDetailScreen(id: string | undefined) {
-  const { getRoomDetailInfo, getAllDevices, deleteRoom, updateRoomAttributes, triggerRoom, toggleDevice } = container
-  const room = useSyncExternalStore(getRoomDetailInfo.subscribe, () => getRoomDetailInfo.execute(id))
-  const devices = useSyncExternalStore(getAllDevices.subscribe, getAllDevices.execute)
-  const detail = useMemo(() => toRoomWithDevices(room, devices), [room, devices])
-  const demo = useMemo(() => (detail ? toRoomDetailDisplay(detail) : undefined), [detail])
-  const server = useServerRoomDetail(id)
-  const display: RoomDetailDisplay | undefined = server.active ? server.detail : demo
+  const list = container.serverRooms
+  const { rooms, members, loaded } = useSyncExternalStore(list.subscribe, list.get)
 
-  return {
-    detail: display,
-    missingText: server.loading ? 'Loading room...' : 'Room not found',
-    setPower: (on: boolean) => detail && triggerRoom.execute(detail.room.id, on),
-    toggleFavourite: () => detail && updateRoomAttributes.execute(detail.room.id, { favourite: !detail.room.favourite }),
-    toggleDevice: (deviceId: string) => toggleDevice.execute(deviceId),
-    editRoom: () => detail && router.push(routes.editRoom(detail.room.id)),
-    deleteRoom: () => {
-      if (!detail) return
-      deleteRoom.execute(detail.room.id)
-      router.back()
-    },
-  }
+  useEffect(() => {
+    if (!id) return
+    // the list may be empty when the page is opened directly; a failure leaves what was known
+    list.refresh().catch(() => {})
+    list.loadMembers(id)
+  }, [id, list])
+
+  const detail = useMemo((): RoomDetailDisplay | undefined => {
+    const room = rooms.find(r => r.id === id)
+    if (!room) return undefined
+    const state = members[room.id]
+    const content = typeof state === 'object' ? state : undefined
+    const devices = content?.devices ?? []
+    const isOn = room.isOn ?? devices.some(d => d.isOn)
+    return {
+      id: room.id,
+      title: room.name,
+      // the room's own picture is not loaded: a bundled one stands in
+      coverSource: COVERS[Number(room.id) % COVERS.length],
+      isOn,
+      switchLabel: isOn ? 'Switch On' : 'Switch Off',
+      devices: devices.map(d => ({
+        id: d.id,
+        title: d.name,
+        kind: d.kind,
+        isOn: d.isOn === true,
+        hasSwitch: !d.unreachable && d.isOn !== undefined,
+        note: d.unreachable ? 'Unreachable' : undefined,
+      })),
+      presets: content?.presets ?? [],
+      devicesMessage: content ? undefined : state === 'error' ? 'Could not load this room.' : 'Loading devices...',
+    }
+  }, [id, rooms, members])
+
+  return { detail, missingText: loaded ? 'Room not found' : 'Loading room...' }
 }

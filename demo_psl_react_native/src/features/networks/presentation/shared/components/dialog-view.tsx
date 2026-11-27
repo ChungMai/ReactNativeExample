@@ -1,35 +1,19 @@
-// A confirm / alert box that also works on web (Alert.alert does not).
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+// A message with an OK button. (Alert.alert does nothing on web.)
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../../../../../shared/theme'
 import type { Dialog } from '../hooks/use-network-list-screen'
 
-type Props = { dialog: Dialog | null; input: string; onType: (text: string) => void; onClose: () => void }
-
-export function DialogView({ dialog, input, onType, onClose }: Props) {
+export function DialogView({ dialog, onClose }: { dialog: Dialog | null; onClose: () => void }) {
   if (!dialog) return null
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.box} accessibilityViewIsModal>
-          {dialog.title ? <Text role="heading" style={styles.title}>{dialog.title}</Text> : null}
+          <Text role="heading" style={styles.title}>{dialog.title}</Text>
           <Text style={styles.message}>{dialog.message}</Text>
-          {dialog.inputLabel ? (
-            <TextInput
-              value={input}
-              onChangeText={onType}
-              accessibilityLabel={dialog.inputLabel}
-              placeholder={dialog.inputLabel}
-              autoCorrect={false}
-              style={styles.input}
-            />
-          ) : null}
-          <View style={styles.buttons}>
-            {dialog.buttons.map(button => (
-              <Pressable key={button.label} onPress={button.onPress} accessibilityRole="button" accessibilityLabel={button.label} hitSlop={8}>
-                <Text style={[styles.button, button.destructive && { color: colors.danger }]}>{button.label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <Pressable onPress={onClose} accessibilityRole="button" style={styles.button}>
+            <Text style={styles.buttonText}>OK</Text>
+          </Pressable>
         </View>
       </View>
     </Modal>
@@ -40,8 +24,7 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   box: { width: '100%', maxWidth: 360, backgroundColor: colors.card, borderRadius: 14, padding: 20, gap: 12 },
   title: { fontSize: 17, fontWeight: '700', color: colors.text },
-  message: { color: colors.text, fontSize: 14 },
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, height: 44, color: colors.text },
-  buttons: { flexDirection: 'row', justifyContent: 'flex-end', gap: 24 },
-  button: { color: colors.primary, fontWeight: '600', fontSize: 15 },
+  message: { fontSize: 14, color: colors.text },
+  button: { alignSelf: 'flex-end', paddingHorizontal: 12, paddingVertical: 8 },
+  buttonText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
 })

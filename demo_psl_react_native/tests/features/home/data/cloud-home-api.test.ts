@@ -36,9 +36,7 @@ describe('CloudHomeApi', () => {
       '0010': 8, '0011': 17, '006A': [1], '0065': [2, 3], '0060': [4], '0066': [6], '0068': [5],
     })
 
-    const { snapshot, readOnly } = repository.getState()
-    expect(readOnly).toBe(true)
-    const overview = buildHomeOverview({ snapshot, rooms: [], devices: {} })
+    const overview = buildHomeOverview(repository.getState().snapshot)
     expect(overview.sections.map(s => [s.kind, s.items[0].name, s.items[0].isOn])).toEqual([
       ['scene', 'Night', undefined], ['device', 'Lamp', true], ['room', 'Hall', false],
       ['group', 'Lights', true], ['zone', 'Upstairs', undefined], ['preset', 'Cool', undefined],
@@ -46,7 +44,22 @@ describe('CloudHomeApi', () => {
     expect(overview.summary.map(s => s.count)).toEqual([7, 1, 2, 0])
   })
 
-  it('shows nothing from the demo home when the server fails', async () => {
+  it('applies the custom layout and positions of the user', async () => {
+    const details = { userProfile: { ...DETAILS.userProfile, homeCustomization: {
+      layout: 'customLayout', itemsPosition: [{ instanceID: 1, position: 0 }],
+      favoriteSections: [{ favouriteType: 'device', sectionName: 'Mine' }],
+    } } }
+    const request = jest.fn(async (url: any) =>
+      ({ status: 200, json: async () => (String(url).includes('/objects') ? OBJECTS : details) }) as Response)
+    const snapshot = await new CloudHomeApi(credentials, network, () => false, request).fetchHome()
+
+    const overview = buildHomeOverview(snapshot)
+    expect(overview.layout).toBe('custom')
+    expect(overview.gridItems[0].name).toBe('Lamp')
+    expect(overview.sections[0]).toMatchObject({ kind: 'device', title: 'Mine' })
+  })
+
+  it('is offline and empty when the first request fails', async () => {
     const request = jest.fn(async () => ({ status: 502 }) as Response)
     const repository = new CachedHomeRepository(new CloudHomeApi(credentials, network, () => false, request))
     await expect(repository.refresh()).rejects.toMatchObject({ code: 'network' })

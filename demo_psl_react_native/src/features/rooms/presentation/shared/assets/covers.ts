@@ -1,4 +1,4 @@
-// Bundled cover images, so the demo works without a network connection.
+// Bundled cover images, shown in place of a room's own picture.
 import type { ImageSourcePropType } from 'react-native'
 
 export const COVERS: ImageSourcePropType[] = [

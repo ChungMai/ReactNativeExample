@@ -15,7 +15,7 @@ export class SessionExpiredError extends Error {
 export class AccessTokenProvider {
   constructor(private vault: TokenVault, private renew = refreshTokens, private now = Date.now) {}
 
-  /** The server the signed-in user belongs to, or undefined without real sign-in (demo account). */
+  /** The server the signed-in user belongs to, or undefined when signed out. */
   server = () => this.vault.get()?.server
 
   /** Throws SessionExpiredError (sign in again) or AppError (try later). */

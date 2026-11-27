@@ -2,8 +2,8 @@
 // Read only on purpose: nothing here switches a device or changes favourites.
 import { createAuthorizedFetch, type Credentials } from '../../../../shared/data/authorized-fetch'
 import { AppError } from '../../../../shared/domain/app-error'
-import type { HomeDTO } from '../dto/home-dto'
-import { toHomeDTO } from '../mappers/cloud-home-mapper'
+import type { HomeSnapshot } from '../../domain/entities/favourites'
+import { toHomeSnapshot } from '../mappers/cloud-home-mapper'
 import type { HomeApi } from './home-api'
 
 const BATCH = 128 // the objects request takes at most this many favourites
@@ -37,13 +37,11 @@ export class CloudHomeApi implements HomeApi {
     this.call = createAuthorizedFetch(credentials, onUnauthorized, request)
   }
 
-  readOnly = () => true
-
   source() {
     return `${this.credentials.server()}|${this.network()?.id ?? ''}`
   }
 
-  async fetchHome(): Promise<HomeDTO> {
+  async fetchHome(): Promise<HomeSnapshot> {
     const network = this.network()
     if (!network || !HUB_ID.test(network.hub)) throw new AppError('unknown', 'No network is chosen')
 
@@ -55,7 +53,7 @@ export class CloudHomeApi implements HomeApi {
     for (const batch of batches(favourites)) {
       answers.push(await this.call(`/api/bridge/${network.hub}/objects`, objectsRequest(batch)))
     }
-    return toHomeDTO(network.name, details.userProfile, favourites, answers)
+    return toHomeSnapshot(details.userProfile, favourites, answers)
   }
 }
 

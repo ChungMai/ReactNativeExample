@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { container } from '@/di/container'
-import { makeEnv } from '@tests/helpers/make-env'
+import { ACCOUNT, makeEnv } from '@tests/helpers/make-env'
 import LoginScreen from '@/features/auth/presentation/shared/screens/login-screen'
 
 jest.mock('@/di/container', () => ({ container: {} }))
@@ -22,14 +22,14 @@ describe('LoginScreen', () => {
     await render(<LoginScreen />)
     await submit()
     expect(screen.getByText('Please enter the registered email address')).toBeTruthy()
-    await fill('demo', 'x')
+    await fill('user', 'x')
     await submit()
     expect(screen.getByText('Please enter a valid Email')).toBeTruthy()
   })
 
   it('shows an error for a wrong password', async () => {
     await render(<LoginScreen />)
-    await fill('demo@example.com', 'wrong')
+    await fill(ACCOUNT.email, 'wrong')
     await submit()
     expect(await screen.findByText('Invalid email or password')).toBeTruthy()
     expect(env.getSession.execute()).toBeUndefined()
@@ -37,10 +37,10 @@ describe('LoginScreen', () => {
 
   it('signs in with "keep me signed in"', async () => {
     await render(<LoginScreen />)
-    await fill('demo@example.com', 'demo1234')
+    await fill(ACCOUNT.email, ACCOUNT.password)
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Keep me signed in' }))
     await submit()
-    expect(env.getSession.execute()).toMatchObject({ email: 'demo@example.com', keepSignedIn: true })
+    expect(env.getSession.execute()).toMatchObject({ email: ACCOUNT.email, keepSignedIn: true })
   })
 
   it('shows and hides the password', async () => {

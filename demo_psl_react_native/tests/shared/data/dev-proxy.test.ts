@@ -64,9 +64,33 @@ describe('dev proxy', () => {
 
   it('forwards the reads of the rooms, and nothing else about a group', async () => {
     expect((await call(to(`${BRIDGE}/groups/0`))).status).toBe(200)
+    expect((await call(to(`${BRIDGE}/groups`))).status).toBe(200)
     expect((await call(to(`${BRIDGE}/groups/12/memberof`))).status).toBe(200)
     expect((await call(to(`${BRIDGE}/groups/12`))).status).toBe(403)
     expect((await call({ ...to(`${BRIDGE}/groups/12`), method: 'POST', body: '{"0010":0}' })).status).toBe(403)
+  })
+
+  it('forwards the lists of the More menu, but nothing that acts on them', async () => {
+    for (const list of ['zones', 'presets', 'scenes', 'events', 'hubs']) {
+      expect((await call(to(`${BRIDGE}/${list}`))).status).toBe(200)
+      expect((await call(to(`${BRIDGE}/${list}/4`))).status).toBe(403)
+      expect((await call({ ...to(`${BRIDGE}/${list}`), method: 'POST', body: '{"0010":0}' })).status).toBe(403)
+    }
+  })
+
+  it('reads the users, but refuses a body that would change one', async () => {
+    const users = { ...to('https://dev.example.test/app/networks/users/all'), method: 'POST' }
+    const network = { networkName: 'Lab', primaryHub: 'hub-1' }
+    expect((await call({ ...users, body: JSON.stringify({ network }) })).status).toBe(200)
+    for (const body of [{ network, userRole: 'primary' }, { network: { ...network, user: 'x' } }, { user: 'x' }]) {
+      expect((await call({ ...users, body: JSON.stringify(body) })).status).toBe(403)
+    }
+  })
+
+  it('reads the energy of a day', async () => {
+    const day = 'https://dev.example.test/ec/api/n1/energy-meter/date/01-02-2026?totalDeviceId=5'
+    expect((await call(to(day))).status).toBe(200)
+    expect((await call(to('https://dev.example.test/ec/api/n1/energy-meter/reset'))).status).toBe(403)
   })
 
   const DEVICES = 'https://dev.example.test/api/bridge/hub-1/accessories'

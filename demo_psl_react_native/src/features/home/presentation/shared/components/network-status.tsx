@@ -10,7 +10,7 @@ export function NetworkStatus({ vm }: { vm: HomeViewModel }) {
     <View style={styles.row}>
       <View style={styles.item}>
         <Ionicons name="wifi" size={18} color={colors.primary} />
-        <Text style={styles.text}>{vm.accessLabel}</Text>
+        <Text style={styles.text}>Remote</Text>
       </View>
       <Pressable
         onPress={vm.toggleTooltip}

@@ -1,4 +1,4 @@
-// A real room drawn by the same detail screen as the demo rooms, read only.
+// The room detail screen shows the server's data and cannot change it.
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { container } from '@/di/container'
 import { ServerRoomList } from '@/features/rooms/data/server-room-list'
@@ -20,18 +20,16 @@ beforeEach(() => {
       devices: [{ id: '5', name: 'Lamp', kind: 'light', isOn: true, unreachable: false }],
       presets: [{ id: '7', name: 'Evening' }],
     }),
-  }, () => true)
+  })
   Object.assign(container, makeEnv(), { serverRooms })
 })
 
-it('shows the demo layout with the real data, and nothing can be changed', async () => {
+it('shows the three tabs, and nothing can be changed', async () => {
   await render(<RoomDetailScreen />)
 
   expect(await screen.findByText('Control your room')).toBeTruthy()
   expect(screen.getByText('Switch On')).toBeTruthy()
   expect(screen.getByRole('switch').props.disabled).toBe(true)
-  expect(screen.queryByLabelText('Room options')).toBeNull()
-  expect(screen.queryByText('Add to Favourites')).toBeNull()
 
   await fireEvent.press(screen.getByRole('tab', { name: 'Devices' }))
   expect(screen.getByText('Lamp')).toBeTruthy()

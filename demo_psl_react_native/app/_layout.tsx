@@ -30,10 +30,8 @@ export default function RootLayout() {
         <Stack.Protected guard={inNetwork}>
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="room/new" options={{ title: 'New Room' }} />
-          <Stack.Screen name="room/edit/[id]" options={{ title: 'Edit Room' }} />
           <Stack.Screen name="room/[id]" options={{ title: 'Room' }} />
-          <Stack.Screen name="favourites/add" options={{ title: 'Add to Favourites' }} />
+          <Stack.Screen name="more/[section]" />
           <Stack.Screen name="hooks-demo" options={{ title: 'Hooks Demo' }} />
         </Stack.Protected>
         <Stack.Protected guard={signedIn && !inNetwork}>

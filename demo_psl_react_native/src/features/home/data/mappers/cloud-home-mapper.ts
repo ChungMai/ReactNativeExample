@@ -1,7 +1,7 @@
-// The server's answers → HomeDTO. Swift: HomeInfo.mapping and PSLHomeCustomizationData.mapping.
+// The server's answers → HomeSnapshot. Swift: HomeInfo.mapping and PSLHomeCustomizationData.mapping.
 // "0081" id, "008A" name, "0080" type, "006C" major class, "0100" on/off, "007F" local preset or scene.
 import type { DeviceKind } from '../../../devices'
-import type { HomeDTO } from '../dto/home-dto'
+import type { HomeCustomization, HomeSnapshot } from '../../domain/entities/favourites'
 
 const ROOM = 768
 const GROUP = 512
@@ -29,80 +29,69 @@ function kindOf(type: unknown): DeviceKind {
   if (type >= 512 && type <= 516) return 'light'
   if (type === 576) return 'fan'
   if (type >= 1200 && type <= 1208) return 'blind'
-  return 'plug' // the demo has no icon for the other types
+  return 'plug' // there is no icon for the other types
 }
 
-type Customization = NonNullable<HomeDTO['customization']>
-
-function toCustomization(value: any): HomeDTO['customization'] {
+function toCustomization(value: any): HomeCustomization | undefined {
   if (!value) return undefined
   const sections: any[] = (Array.isArray(value.favoriteSections) ? value.favoriteSections : [])
     .filter((s: any) => SECTION_KINDS.includes(s?.favouriteType))
   const summary = value.summarySection
-  const layout = value.layout === 'customLayout' ? 'customLayout' : 'defaultLayout'
-  const positions: any[] = layout === 'customLayout'
-    ? value.itemsPosition ?? []
-    : sections.flatMap(s => s.itemsPosition ?? [])
+  const layout = value.layout === 'customLayout' ? 'custom' : 'default'
+  const positions: any[] = layout === 'custom' ? value.itemsPosition ?? [] : sections.flatMap(s => s.itemsPosition ?? [])
 
   return {
     layout,
-    favourite_sections: sections.map((s): Customization['favourite_sections'][number] => ({
-      type: s.favouriteType,
-      name: typeof s.sectionName === 'string' ? s.sectionName : '',
-      is_hidden: s.isHiddenFavourite === true,
+    sections: sections.map(s => ({
+      kind: s.favouriteType,
+      title: typeof s.sectionName === 'string' ? s.sectionName : '',
+      hidden: s.isHiddenFavourite === true,
     })),
     summary: {
-      is_hidden: summary?.isHidden === true,
+      hidden: summary?.isHidden === true,
       items: (Array.isArray(summary?.summarySectionItems) ? summary.summarySectionItems : [])
         .filter((i: any) => SUMMARY_KINDS.includes(i?.categoryType))
-        .map((i: any) => ({ type: i.categoryType, is_hidden: i.isHidden === true })),
+        .map((i: any) => ({ kind: i.categoryType, hidden: i.isHidden === true })),
     },
-    items_position: positions
+    itemPositions: positions
       .filter(p => Number.isInteger(p?.instanceID) && Number.isInteger(p?.position))
       .map(p => ({ id: String(p.instanceID), position: p.position })),
   }
 }
 
-export function toHomeDTO(
-  networkName: string,
+const unique = (ids: number[]) => [...new Set(ids.map(String))]
+
+export function toHomeSnapshot(
   profile: any,
   favourites: Record<'devices' | 'rooms' | 'groups' | 'zones' | 'scenes' | 'presets', number[]>,
   answers: any[],
-): HomeDTO {
+): HomeSnapshot {
   const groupsAndRooms = itemsOf(answers, '0065')
-  const groups = groupsAndRooms.filter(i => i.raw['006C'] === GROUP)
   const on = answers[0]?.['0100']?.on
-  const collection = (i: Item) => ({ id: i.id, name: i.name, device_ids: [], is_on: isOn(i.raw) })
-  const scene = (i: Item) => ({ id: i.id, name: i.name, actions: [] })
+  const switchable = (i: Item) => ({ id: i.id, name: i.name, isOn: isOn(i.raw) })
+  const named = ({ id, name }: Item) => ({ id, name })
 
   return {
-    network: {
-      network_name: networkName,
-      access_mode: 'remote',
-      user_role: profile?.userRole === 'secondary' ? 'secondary' : 'primary',
-    },
     favourites: {
-      devices: favourites.devices.map(String),
-      groups: favourites.groups.map(String),
-      zones: favourites.zones.map(String),
-      scenes: favourites.scenes.map(String),
-      presets: favourites.presets.map(String),
+      device: unique(favourites.devices),
+      group: unique(favourites.groups),
+      zone: unique(favourites.zones),
+      scene: unique(favourites.scenes),
+      preset: unique(favourites.presets),
     },
-    groups: groups.map(collection),
-    zones: itemsOf(answers, '0060').map(collection),
-    scenes: itemsOf(answers, '0068').filter(i => !i.raw['007F']).map(scene),
-    presets: itemsOf(answers, '0066').filter(i => i.raw['007F'] !== 1).map(scene),
+    devices: Object.fromEntries(itemsOf(answers, '006A')
+      .map(i => [i.id, { id: i.id, name: i.name, kind: kindOf(i.raw['0080']), on: isOn(i.raw) === true }])),
+    rooms: groupsAndRooms.filter(i => i.raw['006C'] === ROOM).map(switchable),
+    groups: groupsAndRooms.filter(i => i.raw['006C'] === GROUP).map(switchable),
+    zones: itemsOf(answers, '0060').map(switchable),
+    scenes: itemsOf(answers, '0068').filter(i => !i.raw['007F']).map(named),
+    presets: itemsOf(answers, '0066').filter(i => i.raw['007F'] !== 1).map(named),
+    onCounts: {
+      device: count(on?.['0064']),
+      room: count(on?.['0065.0300']),
+      group: count(on?.['0065.0200']),
+      zone: count(on?.['0060']),
+    },
     customization: toCustomization(profile?.homeCustomization),
-    live: {
-      devices: itemsOf(answers, '006A')
-        .map(i => ({ id: i.id, name: i.name, kind: kindOf(i.raw['0080']), is_on: isOn(i.raw) === true })),
-      rooms: groupsAndRooms.filter(i => i.raw['006C'] === ROOM).map(i => ({ id: i.id, name: i.name, is_on: isOn(i.raw) })),
-      on_counts: {
-        device: count(on?.['0064']),
-        room: count(on?.['0065.0300']),
-        group: count(on?.['0065.0200']),
-        zone: count(on?.['0060']),
-      },
-    },
   }
 }

@@ -55,18 +55,18 @@ describe('server use cases', () => {
 })
 
 describe('SelectedServerAuthApi', () => {
-  it('signs in against the selected server, else the default one, else the demo account', async () => {
+  it('signs in against the selected server, else the default one, else asks for a server', async () => {
     let selected: string | undefined
     const used: string[] = []
     const api = (name: string) => ({ signIn: async () => { used.push(name); return true } })
     const settings = () => ({ selected, saved: [] })
-    const withDefault = new SelectedServerAuthApi(settings, 'https://prod.example.test', api, api('demo'))
-    const withoutDefault = new SelectedServerAuthApi(settings, undefined, api, api('demo'))
+    const withDefault = new SelectedServerAuthApi(settings, 'https://prod.example.test', api)
+    const withoutDefault = new SelectedServerAuthApi(settings, undefined, api)
 
     await withDefault.signIn('a@b.co', 'x')
-    await withoutDefault.signIn('a@b.co', 'x')
+    await expect(withoutDefault.signIn('a@b.co', 'x')).rejects.toMatchObject({ code: 'noServer' })
     selected = 'https://dev.example.test'
     await withDefault.signIn('a@b.co', 'x')
-    expect(used).toEqual(['https://prod.example.test', 'demo', 'https://dev.example.test'])
+    expect(used).toEqual(['https://prod.example.test', 'https://dev.example.test'])
   })
 })

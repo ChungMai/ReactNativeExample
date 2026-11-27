@@ -4,9 +4,7 @@ import type { Href } from 'expo-router'
 
 export const routes = {
   room: (id: string): Href => ({ pathname: '/room/[id]', params: { id } }),
-  editRoom: (id: string): Href => ({ pathname: '/room/edit/[id]', params: { id } }),
-  newRoom: '/room/new' as Href,
-  addFavourites: '/favourites/add' as Href,
   selectServer: '/select-server' as Href,
+  moreSection: (section: string): Href => ({ pathname: '/more/[section]', params: { section } }),
   hooksDemo: '/hooks-demo' as Href,
 }

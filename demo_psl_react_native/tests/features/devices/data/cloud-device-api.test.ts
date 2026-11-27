@@ -30,7 +30,7 @@ describe('CloudDeviceApi', () => {
   it('keeps the last list when a refresh fails, and drops it for another network', async () => {
     let source = 'a'
     const fetchDevices = jest.fn(async () => [{ id: '1', name: 'Lamp', category: 'Lighting' as const, unreachable: false }])
-    const list = new ServerDeviceList({ source: () => source, fetchDevices }, () => true)
+    const list = new ServerDeviceList({ source: () => source, fetchDevices })
     await list.refresh()
     fetchDevices.mockRejectedValue(new Error('down'))
 

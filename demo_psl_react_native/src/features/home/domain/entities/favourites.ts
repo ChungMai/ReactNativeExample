@@ -8,26 +8,15 @@ export type FavouriteKind = (typeof FAVOURITE_KINDS)[number]
 /** Kinds counted in the "switched on" summary. */
 export type SummaryKind = Extract<FavouriteKind, 'device' | 'room' | 'group' | 'zone'>
 
-/** A group or a zone: devices switched together. */
-export interface DeviceCollection {
+export interface NamedItem {
   readonly id: string
   name: string
-  deviceIds: string[]
-  /** Set by the real server, which does not list the members. */
+}
+
+/** A room, group or zone. */
+export interface SwitchableItem extends NamedItem {
+  /** undefined: has nothing to switch. */
   isOn?: boolean
-}
-
-/** A scene or a preset: the power each device gets when it is triggered. */
-export interface Scene {
-  readonly id: string
-  name: string
-  states: Record<string, boolean>
-}
-
-export interface HomeNetwork {
-  name: string
-  mode: 'local' | 'remote'
-  isPrimaryUser: boolean
 }
 
 export interface SectionSetting {
@@ -43,23 +32,18 @@ export interface HomeCustomization {
   itemPositions: { id: string; position: number }[]
 }
 
-/** Favourite ids per kind. Favourite rooms are not here: the rooms feature owns `Room.favourite`. */
+/** Favourite ids per kind. Rooms are listed in `HomeSnapshot.rooms`. */
 export type FavouriteIds = Record<Exclude<FavouriteKind, 'room'>, string[]>
 
-/** What the real server says about the favourites. Replaces the demo devices and rooms. */
-export interface LiveStates {
-  devices: DeviceMap
-  rooms: { id: string; name: string; isOn?: boolean }[]
-  onCounts: Record<SummaryKind, number>
-}
-
 export interface HomeSnapshot {
-  live?: LiveStates
-  network: HomeNetwork
   favourites: FavouriteIds
-  groups: DeviceCollection[]
-  zones: DeviceCollection[]
-  scenes: Scene[]
-  presets: Scene[]
+  devices: DeviceMap
+  rooms: SwitchableItem[]
+  groups: SwitchableItem[]
+  zones: SwitchableItem[]
+  scenes: NamedItem[]
+  presets: NamedItem[]
+  /** How many are switched on in the whole network, not only among the favourites. */
+  onCounts: Record<SummaryKind, number>
   customization?: HomeCustomization
 }

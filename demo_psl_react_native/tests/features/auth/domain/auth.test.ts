@@ -3,10 +3,10 @@ import { isExpired } from '@/features/auth/domain/session-expiry'
 import { LoginUseCase } from '@/features/auth/domain/use-cases/login'
 import { RestoreSessionUseCase } from '@/features/auth/domain/use-cases/restore-session'
 import { AppError } from '@/shared/domain/app-error'
-import { makeEnv } from '@tests/helpers/make-env'
+import { ACCOUNT, makeEnv } from '@tests/helpers/make-env'
 
 const DAY = 24 * 60 * 60 * 1000
-const good = { email: ' Demo@Example.com ', password: 'demo1234', keepSignedIn: false }
+const good = { email: ' User@Example.com ', password: ACCOUNT.password, keepSignedIn: false }
 
 describe('checkCredentials', () => {
   it('checks email, its format, then password', () => {
@@ -31,7 +31,7 @@ describe('LoginUseCase and session', () => {
   it('saves a session with the lower-cased email and no password', async () => {
     const env = makeEnv()
     await new LoginUseCase(env.authRepository, () => 5).execute(good)
-    expect(env.getSession.execute()).toEqual({ email: 'demo@example.com', signedInAt: 5, keepSignedIn: false })
+    expect(env.getSession.execute()).toEqual({ email: 'user@example.com', signedInAt: 5, keepSignedIn: false })
   })
 
   it('rejects wrong credentials without creating a session', async () => {
@@ -52,6 +52,6 @@ describe('LoginUseCase and session', () => {
     expect(env.getSession.execute()).toBeDefined()
     new RestoreSessionUseCase(env.authRepository, () => DAY).execute()
     expect(env.getSession.execute()).toBeUndefined()
-    expect(env.getSession.lastEmail()).toBe('demo@example.com')
+    expect(env.getSession.lastEmail()).toBe('user@example.com')
   })
 })

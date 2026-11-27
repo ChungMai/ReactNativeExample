@@ -1,11 +1,4 @@
-export type NetworkErrorCode =
-  | 'offline'
-  | 'unreachable'
-  | 'remoteAccessDenied'
-  | 'otherServer'
-  | 'requestPending'
-  | 'accessUnavailable'
-  | 'nameMismatch'
+export type NetworkErrorCode = 'remoteAccessDenied'
 
 /** A refusal the UI explains to the user. */
 export class NetworkError extends Error {

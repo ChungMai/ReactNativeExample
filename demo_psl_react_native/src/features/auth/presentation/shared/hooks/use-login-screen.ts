@@ -24,11 +24,12 @@ const ALERTS: Record<AuthErrorCode, LoginAlert> = {
   challengeRequired: failed('This account needs another step (new password or verification code), which is not part of this demo.'),
   tooManyAttempts: failed('Too many attempts. Please wait and try again.'),
   flowNotEnabled: failed('The server does not allow SRP sign-in for this app client (USER_SRP_AUTH).'),
+  noServer: failed('Please choose a server first'),
 }
 const SERVER_ALERT: LoginAlert = { title: 'Oops!', message: 'Internal server error' }
 
 export function useLoginScreen() {
-  const { login, getSession, getServerSettings, demoAccount } = container
+  const { login, getSession, getServerSettings, hasDefaultServer } = container
   const { selected } = useSyncExternalStore(getServerSettings.subscribe, getServerSettings.execute, getServerSettings.execute)
   const [email, setEmail] = useState(() => getSession.lastEmail() ?? '')
   const [password, setPassword] = useState('')
@@ -59,8 +60,7 @@ export function useLoginScreen() {
   return {
     email, password, passwordVisible, keepSignedIn, submitting, alert,
     emailMaxLength: EMAIL_MAX_LENGTH,
-    demoHint: !selected && demoAccount ? `Demo account: ${demoAccount.email} / ${demoAccount.password}` : undefined,
-    serverLabel: serverLabel(selected),
+    serverLabel: selected || hasDefaultServer ? serverLabel(selected) : 'Not chosen',
     chooseServer: () => {
       setAlert(null)
       router.push(routes.selectServer)

@@ -2,10 +2,8 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { IconButton } from '../../../../../shared/components/icon-button'
+import { ObjectCard } from '../../../../../shared/components/object-card'
 import { colors } from '../../../../../shared/theme'
-import { AddTile } from '../../shared/components/add-tile'
-import { FavouriteCard } from '../../shared/components/favourite-card'
 import { HomeOverlays } from '../../shared/components/home-overlays'
 import { NetworkStatus } from '../../shared/components/network-status'
 import { SummaryStrip } from '../../shared/components/summary-strip'
@@ -21,22 +19,13 @@ export default function HomeScreen() {
   const size = (width - MARGIN * 2 - GAP) / 2 // two cards per row
 
   const card = (c: CardDisplay) => (
-    <FavouriteCard key={c.key} card={c} size={size} onPress={vm.activate} onOpenDetail={vm.openDetail} />
+    <ObjectCard key={c.key} title={c.title} icon={c.icon} isOn={c.isOn} size={size} onPress={() => vm.open(c)} />
   )
-  const emptyTile = vm.emptyTile ? (
-    <View style={styles.tile}>
-      <AddTile {...vm.emptyTile} size={size} />
-    </View>
-  ) : null
 
   return (
     // Home draws its own header, so it has to clear the status bar itself.
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.card }}>
       <View style={styles.header}>
-        <View style={styles.actions}>
-          {vm.canAdd ? <IconButton icon="add" label="Add" onPress={() => vm.toggleMenu('add')} /> : null}
-          <IconButton icon="ellipsis-horizontal" label="More options" onPress={() => vm.toggleMenu('more')} variant="plain" />
-        </View>
         <Pressable onPress={vm.openNetworks} accessibilityRole="button" accessibilityLabel="Change network" style={styles.network}>
           <Text role="heading" numberOfLines={1} style={styles.name}>{vm.networkName}</Text>
           <Ionicons name="chevron-down" size={22} color={colors.primary} />
@@ -62,7 +51,7 @@ export default function HomeScreen() {
               </View>
             ))
           )}
-          {emptyTile}
+          {vm.emptyText ? <Text style={styles.sectionTitle}>{vm.emptyText}</Text> : null}
         </ScrollView>
         <HomeOverlays vm={vm} />
       </View>
@@ -71,8 +60,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: { paddingHorizontal: 18, paddingBottom: 8, gap: 4 },
-  actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  header: { paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8, gap: 4 },
   network: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   name: { fontSize: 32, fontWeight: '500', color: colors.text, flexShrink: 1 },
   content: { paddingBottom: MARGIN, gap: 12 },
@@ -80,5 +68,4 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 17, color: colors.text, paddingHorizontal: MARGIN },
   row: { paddingHorizontal: MARGIN, gap: 15 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: MARGIN, gap: GAP },
-  tile: { paddingHorizontal: MARGIN },
 })

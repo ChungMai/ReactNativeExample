@@ -14,7 +14,7 @@ const reply = (body: unknown) => ({ status: 200, json: async () => body }) as Re
 describe('real rooms', () => {
   it('lists the rooms and loads the members of one', async () => {
     const request = jest.fn(async (url: any) => reply(String(url).endsWith('/memberof') ? MEMBERS : ROOMS))
-    const list = new ServerRoomList(new CloudRoomApi(credentials, network, () => false, request), () => true)
+    const list = new ServerRoomList(new CloudRoomApi(credentials, network, () => false, request))
 
     await list.refresh()
     await list.loadMembers('2')
@@ -32,7 +32,7 @@ describe('real rooms', () => {
 
   it('records a failure to load the members', async () => {
     const request = jest.fn(async () => ({ status: 500 }) as Response)
-    const list = new ServerRoomList(new CloudRoomApi(credentials, network, () => false, request), () => true)
+    const list = new ServerRoomList(new CloudRoomApi(credentials, network, () => false, request))
     await list.loadMembers('2')
     expect(list.get().members['2']).toBe('error')
   })

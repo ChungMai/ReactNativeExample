@@ -30,5 +30,4 @@ export interface HomeOverview {
   /** Every favourite in one list, for the custom (grid) layout. */
   gridItems: HomeItem[]
   hasFavourites: boolean
-  hasDevices: boolean
 }

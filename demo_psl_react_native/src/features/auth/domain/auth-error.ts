@@ -7,6 +7,7 @@ export type AuthErrorCode =
   | 'challengeRequired'
   | 'tooManyAttempts'
   | 'flowNotEnabled'
+  | 'noServer'
 
 /** A login failure the user can fix. Connection problems stay AppError. */
 export class AuthError extends Error {

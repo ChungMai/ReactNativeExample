@@ -1,8 +1,7 @@
 // The real network list. Swift: NetworkManager.getAllNetworksFromCloud.
-// Read only on purpose: deleting or leaving a real network is not wired up.
+// Read only: joining, deleting and leaving are not wired up.
 import { AppError } from '../../../../shared/domain/app-error'
-import type { AccessDTO, NetworkListDTO } from '../network-dto'
-import type { NetworkApi } from './network-api'
+import type { NetworkDTO } from '../network-dto'
 
 const TIMEOUT_MS = 15_000
 
@@ -12,7 +11,7 @@ export interface Credentials {
   accessToken(): Promise<string>
 }
 
-export class CloudNetworkApi implements NetworkApi {
+export class CloudNetworkApi {
   constructor(
     private credentials: Credentials,
     /** Called when the server no longer accepts the sign-in. */
@@ -20,30 +19,19 @@ export class CloudNetworkApi implements NetworkApi {
     private request: typeof fetch = (...args) => fetch(...args),
   ) {}
 
-  readOnly = () => true
-
   private hubs = new Map<string, { hub: string; name: string }>()
   /** What the server needs to address a network of the last fetched list. */
   hubOf = (id: string) => this.hubs.get(id)
 
-  async fetchNetworks(): Promise<NetworkListDTO> {
+  async fetchNetworks(): Promise<NetworkDTO[]> {
     const body = await this.get('/app/networks')
     if (!Array.isArray(body)) throw new AppError('unknown', 'GET /app/networks: the answer is not a list')
-    this.hubs = new Map(body.flatMap((item: any) => toJoined(item).map(n => {
+    this.hubs = new Map(body.flatMap((item: any) => toNetwork(item).map(n => {
       const hub = item.network.primaryHub
       return [n.network_id, { hub: typeof hub === 'string' ? hub : '', name: n.network_name }] as const
     })))
-    return { joined: body.flatMap(toJoined), nearby: [] } // "nearby" needs local discovery
+    return body.flatMap(toNetwork)
   }
-
-  // Local access needs discovery on the LAN, which this app does not have: everything is remote.
-  async checkAccess(): Promise<AccessDTO> {
-    return 'remote'
-  }
-
-  async requestToJoin(): Promise<void> { throw readOnlyError() }
-  async delete(): Promise<void> { throw readOnlyError() }
-  async exit(): Promise<void> { throw readOnlyError() }
 
   private async get(path: string): Promise<unknown> {
     const server = this.credentials.server()
@@ -68,20 +56,16 @@ export class CloudNetworkApi implements NetworkApi {
   }
 }
 
-const readOnlyError = () => new AppError('unknown', 'The real network list is read only')
-
 // Swift: NetworkInfo / Network / UserInfo mapping. Entries without an id or a name are skipped.
-function toJoined(item: any): NetworkListDTO['joined'] {
+function toNetwork(item: any): NetworkDTO[] {
   const id = item?.network?._id ?? item?.network?.primaryHub
   const name = item?.network?.networkName
   if (typeof id !== 'string' || typeof name !== 'string') return []
   const role = item.userProfile?.userRole ?? item.userRole
-  const primaryUsers = item.numberOfPrimaryUser
   return [{
     network_id: id,
     network_name: name,
     user_role: role === 'secondary' ? 'secondary' : 'primary',
     ras: item.userProfile?.ras === true,
-    primary_users: typeof primaryUsers === 'number' ? primaryUsers : 1,
   }]
 }

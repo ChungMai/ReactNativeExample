@@ -1,4 +1,3 @@
-import type { ImageSourcePropType } from 'react-native'
 import type { IconName } from '../../../../../shared/navigation/shared/nav-items'
 import type { FavouriteKind, SummaryKind } from '../../../domain/entities/favourites'
 
@@ -8,10 +7,8 @@ export interface CardDisplay {
   id: string
   title: string
   icon: IconName
-  coverSource?: ImageSourcePropType // rooms only
-  stateLabel: 'On' | 'Off' | null // null: nothing to show (scene, preset, empty room)
-  isOn: boolean
-  accessibilityLabel: string
+  /** undefined: nothing to show (scene, preset, empty room). */
+  isOn?: boolean
 }
 
 export interface SectionDisplay {

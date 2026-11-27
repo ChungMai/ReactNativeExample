@@ -128,7 +128,6 @@ export default function LoginScreen() {
               <Link label="Register" onPress={() => vm.notPorted('Register')} />
             </View>
 
-            {vm.demoHint ? <Text style={styles.hint}>{vm.demoHint}</Text> : null}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -158,5 +157,4 @@ const styles = StyleSheet.create({
   login: { flex: 1, height: 48, borderRadius: 8, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   loginText: { color: '#fff', fontSize: 16, fontWeight: '600' },
   biometric: { width: 48, height: 48, borderRadius: 5, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  hint: { color: colors.muted, fontSize: 12, textAlign: 'center', marginTop: 16 },
 })

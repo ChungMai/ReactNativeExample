@@ -62,6 +62,15 @@ describe('SelectServerScreen', () => {
     expect(router.back).not.toHaveBeenCalled()
   })
 
+  it('offers only a custom address when no default server is configured', async () => {
+    env.hasDefaultServer = false
+    Object.assign(container, env)
+    await render(<SelectServerScreen />)
+    expect(screen.getByRole('button', { name: 'Server: Custom Server' })).toBeTruthy()
+    await press('Server: Custom Server')
+    expect(screen.queryByRole('button', { name: 'Default Server' })).toBeNull()
+  })
+
   it('removes a saved server', async () => {
     await env.connectServer.execute('dev.example.test')
     await render(<SelectServerScreen />)

@@ -62,7 +62,7 @@ export function ObjectCardGrid({ children }: { children: (size: number) => React
   // measured, not the window: a sidebar may take part of it
   const [width, setWidth] = useState(0)
   return (
-    <View style={styles.grid} onLayout={e => setWidth(e.nativeEvent.layout.width - MARGIN * 2)}>
+    <View testID="card-grid" style={styles.grid} onLayout={e => setWidth(e.nativeEvent.layout.width - MARGIN * 2)}>
       {width > 0 ? children(cardSizeFor(width)) : null}
     </View>
   )

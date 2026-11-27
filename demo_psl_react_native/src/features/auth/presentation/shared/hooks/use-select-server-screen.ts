@@ -17,10 +17,11 @@ const ERRORS: Record<ServerErrorCode, string> = {
 }
 
 export function useSelectServerScreen() {
-  const { getServerSettings, connectServer, removeServer } = container
+  const { getServerSettings, connectServer, removeServer, hasDefaultServer } = container
   const settings = useSyncExternalStore(getServerSettings.subscribe, getServerSettings.execute, getServerSettings.execute)
+  const fallback: Choice = hasDefaultServer ? { kind: 'default' } : { kind: 'custom' }
   const [choice, setChoice] = useState<Choice>(() =>
-    settings.selected ? { kind: 'saved', url: settings.selected } : { kind: 'default' })
+    settings.selected ? { kind: 'saved', url: settings.selected } : fallback)
   const [address, setAddress] = useState('')
   const [listOpen, setListOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +43,7 @@ export function useSelectServerScreen() {
     onRemove: url
       ? () => {
           removeServer.execute(url)
-          if (choice.kind === 'saved' && choice.url === url) setChoice({ kind: 'default' })
+          if (choice.kind === 'saved' && choice.url === url) setChoice(fallback)
         }
       : undefined,
   })
@@ -52,7 +53,7 @@ export function useSelectServerScreen() {
       choice.kind === 'saved' ? serverLabel(choice.url) : choice.kind === 'custom' ? CUSTOM_SERVER : DEFAULT_SERVER,
     isCustom: choice.kind === 'custom',
     options: [
-      option(DEFAULT_SERVER, { kind: 'default' }, choice.kind === 'default'),
+      ...(hasDefaultServer ? [option(DEFAULT_SERVER, { kind: 'default' }, choice.kind === 'default')] : []),
       ...settings.saved.map(url =>
         option(serverLabel(url), { kind: 'saved', url }, choice.kind === 'saved' && choice.url === url, url)),
       option(CUSTOM_SERVER, { kind: 'custom' }, choice.kind === 'custom'),

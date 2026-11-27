@@ -74,8 +74,7 @@ const { data, loading, error } = useFetch<User[]>('https://example.com/users')
 
 ## Related code in this project
 
-- `src/features/groups/presentation/hooks/use-groups-screen.ts`: `useState` for a list with add and remove.
-- `src/features/rooms/presentation/hooks/use-new-room-screen.ts`: a custom hook that keeps screen logic out of the UI.
+- `src/features/auth/presentation/shared/hooks/use-login-screen.ts`: a custom hook that keeps screen logic out of the UI.
 
 ## Check the types
 

@@ -18,13 +18,10 @@ describe('CloudNetworkApi', () => {
     expect(request).toHaveBeenCalledWith('https://dev.example.test/app/networks', expect.objectContaining({
       headers: expect.objectContaining({ Authorization: 'Bearer token-1' }),
     }))
-    expect(list).toEqual({
-      nearby: [],
-      joined: [
-        { network_id: 'a', network_name: 'Lab', user_role: 'primary', ras: true, primary_users: 2 },
-        { network_id: 'hub-b', network_name: 'Demo room', user_role: 'secondary', ras: false, primary_users: 1 },
-      ],
-    })
+    expect(list).toEqual([
+        { network_id: 'a', network_name: 'Lab', user_role: 'primary', ras: true },
+        { network_id: 'hub-b', network_name: 'Demo room', user_role: 'secondary', ras: false },
+    ])
   })
 
   it('signs out on 401 and reports other failures', async () => {
@@ -39,16 +36,6 @@ describe('CloudNetworkApi', () => {
     const dead = { ...credentials, accessToken: async () => { throw new SessionExpiredError() } }
     const api = new CloudNetworkApi(dead, e => e instanceof SessionExpiredError, reply(200, []))
     await expect(api.fetchNetworks()).rejects.toBeInstanceOf(SessionExpiredError)
-  })
-
-  it('never deletes or leaves a real network', async () => {
-    const request = reply(200, ANSWER)
-    const repository = new CachedNetworkRepository(new CloudNetworkApi(credentials, () => false, request))
-    await repository.refresh()
-    expect(repository.getList()).toMatchObject({ readOnly: true, serverOnline: true })
-    await expect(repository.delete('a')).rejects.toThrow('read only')
-    await expect(repository.exit('a')).rejects.toThrow('read only')
-    expect(request).toHaveBeenCalledTimes(1)
   })
 
   it('forgets the list on reset, even if an answer is still on its way', async () => {

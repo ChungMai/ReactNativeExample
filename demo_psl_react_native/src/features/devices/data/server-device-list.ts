@@ -9,18 +9,14 @@ export interface DeviceSource {
   fetchDevices(): Promise<ListedDevice[]>
 }
 
-/**
- * The devices of the real network. Kept apart from the demo devices, which the demo rooms refer to.
- */
+/** The devices of the chosen network. */
 export class ServerDeviceList {
   private store = new InMemoryStore<DeviceList>(EMPTY)
   private source?: string
   private pending?: { source: string; done: Promise<void> }
 
-  constructor(private api: DeviceSource, private isReal: () => boolean) {}
+  constructor(private api: DeviceSource) {}
 
-  /** true after a real sign-in: the screen shows this list instead of the demo devices. */
-  isActive = () => this.isReal()
   get = () => this.store.get()
   subscribe = (listener: () => void) => this.store.subscribe(listener)
 

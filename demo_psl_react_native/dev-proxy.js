@@ -3,15 +3,24 @@
 // It is deliberately narrow, because the second call carries the user's access token.
 const PATH = '/__dev-proxy'
 const TIMEOUT_MS = 15_000
-// the only things the app reads: the sign-in configuration, the network list, Home, Devices and Rooms
+// the only things the app reads: the sign-in configuration, the network list, Home, Devices, Rooms, Groups and More
 const ALLOWED_PATHS = ['/wmc/auth/types', '/app/networks', '/app/networks/users/']
-// Rooms: the list, and the members of one room.
-const ROOM_PATHS = /^\/api\/bridge\/[A-Za-z0-9_-]+\/groups\/(0|\d+\/memberof)$/
-// Home and Devices read with a POST. Only these paths, each only with its reading operation in the body.
+// Groups, and Rooms: the list and the members of one room.
+const ROOM_PATHS = /^\/api\/bridge\/[A-Za-z0-9_-]+\/groups(\/(0|\d+\/memberof))?$/
+// Some reads are POSTs. Only these paths, each only with a body that reads: the user list path, for one,
+// also changes users when it is sent something else.
+const operation = code => body => body['0010'] === code
+const onlyTheNetwork = body =>
+  Object.keys(body).join() === 'network' && Object.keys(body.network ?? {}).sort().join() === 'networkName,primaryHub'
 const READS = [
-  { path: /^\/api\/bridge\/[A-Za-z0-9_-]+\/objects$/, operation: 8 }, // get list
-  { path: /^\/api\/bridge\/[A-Za-z0-9_-]+\/accessories$/, operation: 23 }, // filter devices
+  { path: /^\/api\/bridge\/[A-Za-z0-9_-]+\/objects$/, accepts: operation(8) }, // get list
+  { path: /^\/api\/bridge\/[A-Za-z0-9_-]+\/accessories$/, accepts: operation(23) }, // filter devices
+  { path: /^\/app\/networks\/users\/all$/, accepts: onlyTheNetwork },
 ]
+// the energy of a meter, hour by hour
+const ENERGY_PATH = /^\/ec\/api\/[A-Za-z0-9_-]+\/energy-meter\/date\/\d{2}-\d{2}-\d{4}$/
+// the lists of the More menu
+const MORE_PATHS = /^\/api\/bridge\/[A-Za-z0-9_-]+\/(zones|presets|scenes|events|hubs)$/
 const readOf = pathname => READS.find(r => r.path.test(pathname))
 const MAX_BODY = 32 * 1024
 const LOOPBACK = ['127.0.0.1', '::1', '::ffff:127.0.0.1']
@@ -23,7 +32,7 @@ function targetOf(requestUrl, suffixes, method) {
     const target = new URL(new URL(requestUrl, 'http://localhost').searchParams.get('url'))
     const hostAllowed = suffixes.some(s => s.startsWith('.') && target.hostname.endsWith(s))
     const plain = target.protocol === 'https:' && !target.username && !target.password && !target.port
-    const pathAllowed = method === 'POST' ? readOf(target.pathname) !== undefined : ALLOWED_PATHS.includes(target.pathname) || ROOM_PATHS.test(target.pathname)
+    const pathAllowed = method === 'POST' ? readOf(target.pathname) !== undefined : ALLOWED_PATHS.includes(target.pathname) || ROOM_PATHS.test(target.pathname) || MORE_PATHS.test(target.pathname) || ENERGY_PATH.test(target.pathname)
     return plain && hostAllowed && pathAllowed ? target : undefined
   } catch {
     return undefined
@@ -31,14 +40,14 @@ function targetOf(requestUrl, suffixes, method) {
 }
 
 /** The body of a request that only reads, otherwise undefined. */
-async function readOnlyBody(req, operation) {
+async function readOnlyBody(req, accepts) {
   let text = ''
   try {
     for await (const chunk of req) {
       text += chunk
       if (text.length > MAX_BODY) return undefined
     }
-    return JSON.parse(text)['0010'] === operation ? text : undefined
+    return accepts(JSON.parse(text)) ? text : undefined
   } catch {
     return undefined
   }
@@ -64,7 +73,7 @@ function createDevProxy({ suffixes, request = (...args) => fetch(...args) }) {
     if (req.headers.authorization) headers.Authorization = req.headers.authorization
     let body
     if (req.method === 'POST') {
-      body = await readOnlyBody(req, readOf(target.pathname).operation)
+      body = await readOnlyBody(req, readOf(target.pathname).accepts)
       if (body === undefined) return reply(403, 'Refused')
       headers['Content-Type'] = 'application/json'
     }

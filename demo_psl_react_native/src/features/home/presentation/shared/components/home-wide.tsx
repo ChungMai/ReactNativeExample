@@ -2,13 +2,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { IconButton } from '../../../../../shared/components/icon-button'
+import { ObjectCard } from '../../../../../shared/components/object-card'
 import { PageHeader } from '../../../../../shared/components/page-header'
 import { GRID_GAP, PAGE_PADDING } from '../../../../../shared/layout'
 import { colors } from '../../../../../shared/theme'
 import type { HomeViewModel } from '../hooks/use-home-screen'
 import type { CardDisplay } from '../models/home-display'
-import { AddTile } from './add-tile'
-import { FavouriteCard } from './favourite-card'
 import { HomeOverlays } from './home-overlays'
 import { NetworkStatus } from './network-status'
 import { SummaryStrip } from './summary-strip'
@@ -19,7 +18,7 @@ export function HomeWide({ vm }: { vm: HomeViewModel }) {
   const grid = (cards: CardDisplay[]) => (
     <View style={styles.grid}>
       {cards.map(card => (
-        <FavouriteCard key={card.key} card={card} size={CARD} onPress={vm.activate} onOpenDetail={vm.openDetail} detailButton />
+        <ObjectCard key={card.key} title={card.title} icon={card.icon} isOn={card.isOn} size={CARD} onPress={() => vm.open(card)} />
       ))}
     </View>
   )
@@ -32,8 +31,6 @@ export function HomeWide({ vm }: { vm: HomeViewModel }) {
         </Pressable>
         <NetworkStatus vm={vm} />
         <IconButton icon="refresh" label="Refresh" onPress={vm.refresh} variant="plain" />
-        {vm.canAdd ? <IconButton icon="add" label="Add" onPress={() => vm.toggleMenu('add')} /> : null}
-        <IconButton icon="ellipsis-horizontal" label="More options" onPress={() => vm.toggleMenu('more')} variant="plain" />
       </PageHeader>
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content}>
@@ -46,7 +43,7 @@ export function HomeWide({ vm }: { vm: HomeViewModel }) {
                   {grid(section.cards)}
                 </View>
               ))}
-          {vm.emptyTile ? <AddTile {...vm.emptyTile} size={CARD} /> : null}
+          {vm.emptyText ? <Text style={styles.sectionTitle}>{vm.emptyText}</Text> : null}
         </ScrollView>
         <HomeOverlays vm={vm} />
       </View>
